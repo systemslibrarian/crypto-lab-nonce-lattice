@@ -14,7 +14,7 @@ export interface RecoveryPanelData {
 export function renderRecoveryPanel(data: RecoveryPanelData): string {
   const recovered = data.recoveredKey === null ? 'not recovered' : formatScalar(data.recoveredKey, data.curve.orderBytes);
   const statusClass = data.byteMatch ? 'success' : 'failure';
-  const statusText = data.byteMatch ? 'PRIVATE KEY RECOVERED' : 'RECOVERY FAILED';
+  const statusText = data.byteMatch ? 'PRIVATE KEY RECOVERED' : 'ANALYSIS COMPLETE - KEY NOT RECOVERED';
   const realityTitle = `What's Real, What's ${'Simu' + 'lated'}`;
   const realityBody = `${'Simu' + 'lated'} for browser context:`;
   const diagnostics = data.trace.diagnostics.map((line) => `<li>${line}</li>`).join('');

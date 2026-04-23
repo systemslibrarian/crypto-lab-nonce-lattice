@@ -222,7 +222,7 @@ function renderApp(state: AppState): string {
       : analysis === null
         ? 'Choose a preset or submit parameters to run the attack.'
       : analysis?.recovery.recoveredKey === null
-        ? 'Attack did not recover a matching key.'
+        ? 'Analysis complete: no matching key recovered for this run.'
         : 'Attack recovered the exact signing key.';
   const landingCard = `Recover ECDSA private keys from partial nonce leakage - real signatures, real LLL lattice reduction, real byte-for-byte key recovery.`;
   const analysisBody = loading
