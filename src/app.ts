@@ -61,6 +61,13 @@ interface AnalysisBundle {
   byteMatch: boolean;
 }
 
+interface AppState {
+  config: AppConfigView;
+  analysis: AnalysisBundle | null;
+  loading: boolean;
+  error: string | null;
+}
+
 function parseHexScalar(value: string): bigint | undefined {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -206,9 +213,86 @@ function renderCrossReferences(): string {
   `;
 }
 
-function renderApp(config: AppConfigView, analysis: AnalysisBundle): string {
-  const summary = analysis.recovery.recoveredKey === null ? 'Attack did not recover a matching key.' : 'Attack recovered the exact signing key.';
+function renderApp(state: AppState): string {
+  const { config, analysis, loading, error } = state;
+  const summary = loading
+    ? 'Running lattice analysis...'
+    : error
+      ? `Analysis failed: ${error}`
+      : analysis?.recovery.recoveredKey === null
+        ? 'Attack did not recover a matching key.'
+        : 'Attack recovered the exact signing key.';
   const landingCard = `Recover ECDSA private keys from partial nonce leakage - real signatures, real LLL lattice reduction, real byte-for-byte key recovery.`;
+  const analysisBody = loading
+    ? `
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Analysis</p>
+              <h2>Running computations</h2>
+            </div>
+          </div>
+          <p class="muted">Generating signatures, reducing lattices, and checking key candidates...</p>
+        </section>
+      `
+    : error
+      ? `
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Analysis</p>
+              <h2>Failed to run</h2>
+            </div>
+          </div>
+          <p class="muted">${error}</p>
+        </section>
+      `
+      : `
+        ${renderRecoveryPanel({
+          curve: analysis!.curve,
+          actualKey: analysis!.privateKey,
+          recoveredKey: analysis!.recovery.recoveredKey,
+          publicKey: analysis!.publicKey,
+          byteMatch: analysis!.byteMatch,
+          verificationPassed: analysis!.verificationPassed,
+          trace: analysis!.recovery.trace,
+        })}
+        ${renderSignatureLog(analysis!.signatures, analysis!.curve)}
+        ${renderLatticeView(analysis!.recovery.trace)}
+        ${renderBasisView(analysis!.recovery.trace)}
+      `;
+
+  const metaPanel = analysis
+    ? `
+      <section class="panel span-two meta-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Attack State</p>
+            <h2>Execution details</h2>
+          </div>
+        </div>
+        <div class="meta-grid">
+          <article>
+            <span>Curve</span>
+            <strong>${analysis.curve.label}</strong>
+          </article>
+          <article>
+            <span>Public Key</span>
+            <code>${bytesToHex(analysis.publicKey).slice(0, 56)}...</code>
+          </article>
+          <article>
+            <span>Signing Key</span>
+            <code>${formatScalar(analysis.privateKey, analysis.curve.orderBytes).slice(0, 56)}...</code>
+          </article>
+          <article>
+            <span>Signatures</span>
+            <strong>${analysis.signatures.length}</strong>
+          </article>
+        </div>
+      </section>
+    `
+    : '';
+
   return `
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="app-shell">
@@ -236,48 +320,12 @@ function renderApp(config: AppConfigView, analysis: AnalysisBundle): string {
       </header>
       <main class="dashboard-grid" id="main-content" tabindex="-1">
         ${renderConfigPanel(config)}
-        ${renderRecoveryPanel({
-          curve: analysis.curve,
-          actualKey: analysis.privateKey,
-          recoveredKey: analysis.recovery.recoveredKey,
-          publicKey: analysis.publicKey,
-          byteMatch: analysis.byteMatch,
-          verificationPassed: analysis.verificationPassed,
-          trace: analysis.recovery.trace,
-        })}
-        ${renderSignatureLog(analysis.signatures, analysis.curve)}
-        ${renderLatticeView(analysis.recovery.trace)}
-        ${renderBasisView(analysis.recovery.trace)}
+        ${analysisBody}
         ${renderCaseStudies()}
         ${renderTimeline()}
         ${renderCrossReferences()}
       </main>
-      <section class="panel span-two meta-panel">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Attack State</p>
-            <h2>Execution details</h2>
-          </div>
-        </div>
-        <div class="meta-grid">
-          <article>
-            <span>Curve</span>
-            <strong>${analysis.curve.label}</strong>
-          </article>
-          <article>
-            <span>Public Key</span>
-            <code>${bytesToHex(analysis.publicKey).slice(0, 56)}...</code>
-          </article>
-          <article>
-            <span>Signing Key</span>
-            <code>${formatScalar(analysis.privateKey, analysis.curve.orderBytes).slice(0, 56)}...</code>
-          </article>
-          <article>
-            <span>Signatures</span>
-            <strong>${analysis.signatures.length}</strong>
-          </article>
-        </div>
-      </section>
+      ${metaPanel}
     </div>
   `;
 }
@@ -287,7 +335,7 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
     throw new Error('App root not found');
   }
 
-  const state: { config: AppConfigView; analysis: AnalysisBundle } = {
+  const state: AppState = {
     config: {
       curve: 'secp256k1',
       leakMode: 'msb',
@@ -296,18 +344,13 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
       fixedPrefixVariant: 'random-tail',
       fixedPrefixValue: '',
     },
-    analysis: runAnalysis({
-      curve: 'secp256k1',
-      leakMode: 'msb',
-      leakedBits: 4,
-      signatureCount: 40,
-      fixedPrefixVariant: 'random-tail',
-      fixedPrefixValue: '',
-    }),
+    analysis: null,
+    loading: true,
+    error: null,
   };
 
   const rerender = () => {
-    root.innerHTML = renderApp(state.config, state.analysis);
+    root.innerHTML = renderApp(state);
 
     const presetButtons = root.querySelectorAll<HTMLButtonElement>('[data-preset]');
     presetButtons.forEach((button) => {
@@ -317,8 +360,21 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
           return;
         }
         state.config = { ...presets[preset] };
-        state.analysis = runAnalysis(state.config);
+          state.loading = true;
+          state.error = null;
         rerender();
+          setTimeout(() => {
+            try {
+              state.analysis = runAnalysis(state.config);
+              state.error = null;
+            } catch (analysisError) {
+              state.analysis = null;
+              state.error = analysisError instanceof Error ? analysisError.message : 'Unknown analysis error.';
+            } finally {
+              state.loading = false;
+              rerender();
+            }
+          }, 0);
       });
     });
 
@@ -335,12 +391,37 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
         fixedPrefixVariant: String(formData.get('fixedPrefixVariant') ?? 'random-tail') as FixedPrefixVariant,
         fixedPrefixValue: String(formData.get('fixedPrefixValue') ?? ''),
       };
-      state.analysis = runAnalysis(state.config);
+        state.loading = true;
+        state.error = null;
       rerender();
+        setTimeout(() => {
+          try {
+            state.analysis = runAnalysis(state.config);
+            state.error = null;
+          } catch (analysisError) {
+            state.analysis = null;
+            state.error = analysisError instanceof Error ? analysisError.message : 'Unknown analysis error.';
+          } finally {
+            state.loading = false;
+            rerender();
+          }
+        }, 0);
     });
 
     onRender?.();
   };
 
   rerender();
+  setTimeout(() => {
+    try {
+      state.analysis = runAnalysis(state.config);
+      state.error = null;
+    } catch (analysisError) {
+      state.analysis = null;
+      state.error = analysisError instanceof Error ? analysisError.message : 'Unknown analysis error.';
+    } finally {
+      state.loading = false;
+      rerender();
+    }
+  }, 0);
 }
