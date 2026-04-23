@@ -219,6 +219,8 @@ function renderApp(state: AppState): string {
     ? 'Running lattice analysis...'
     : error
       ? `Analysis failed: ${error}`
+      : analysis === null
+        ? 'Choose a preset or submit parameters to run the attack.'
       : analysis?.recovery.recoveredKey === null
         ? 'Attack did not recover a matching key.'
         : 'Attack recovered the exact signing key.';
@@ -245,6 +247,18 @@ function renderApp(state: AppState): string {
             </div>
           </div>
           <p class="muted">${error}</p>
+        </section>
+      `
+      : analysis === null
+      ? `
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Analysis</p>
+              <h2>Ready to run</h2>
+            </div>
+          </div>
+          <p class="muted">The dashboard is loaded. Select a scenario preset or click Generate Attack to run the full nonce-lattice workflow.</p>
         </section>
       `
       : `
@@ -345,7 +359,7 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
       fixedPrefixValue: '',
     },
     analysis: null,
-    loading: true,
+    loading: false,
     error: null,
   };
 
@@ -412,16 +426,4 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
   };
 
   rerender();
-  setTimeout(() => {
-    try {
-      state.analysis = runAnalysis(state.config);
-      state.error = null;
-    } catch (analysisError) {
-      state.analysis = null;
-      state.error = analysisError instanceof Error ? analysisError.message : 'Unknown analysis error.';
-    } finally {
-      state.loading = false;
-      rerender();
-    }
-  }, 0);
 }
