@@ -1,22 +1,49 @@
-import { recoverKey } from './attacks/recover-key';
-import { createNonceGenerator } from './crypto/biased-nonce';
-import { sign, verify } from './crypto/ecdsa';
-import { bigIntToBytes, bytesToHex, formatScalar, randomScalar } from './crypto/modular';
-import { p256Curve } from './curves/p256';
-import { secp256k1Curve } from './curves/secp256k1';
+import { type AnalysisBundle, type AnalysisRequest, type AnalysisResponse } from './analysis';
+import { bytesToHex, formatScalar } from './crypto/modular';
 import { renderBasisView } from './ui/basis-view';
-import { renderConfigPanel, type AppConfigView } from './ui/config-panel';
+import { renderConfigPanel } from './ui/config-panel';
 import { renderLatticeView } from './ui/lattice-view';
 import { renderRecoveryPanel } from './ui/recovery-panel';
 import { renderSignatureLog } from './ui/signature-log';
-import type { CurveContext, FixedPrefixVariant, LeakConfig, RecoveryResult, SignatureRecord } from './types';
+import type { AppConfigView, FixedPrefixVariant, LeakConfig } from './types';
 
-const curveMap: Record<string, CurveContext> = {
-  secp256k1: secp256k1Curve,
-  p256: p256Curve,
+const MAX_SIGNATURE_COUNT = 32;
+const STORAGE_CONFIG_KEY = 'nonce-lattice-config';
+
+const DEFAULT_CONFIG: AppConfigView = {
+  curve: 'secp256k1',
+  leakMode: 'msb',
+  leakedBits: 24,
+  signatureCount: 12,
+  fixedPrefixVariant: 'random-tail',
+  fixedPrefixValue: '',
 };
 
 const presets: Record<string, AppConfigView> = {
+  'fast-msb': {
+    curve: 'secp256k1',
+    leakMode: 'msb',
+    leakedBits: 24,
+    signatureCount: 12,
+    fixedPrefixVariant: 'random-tail',
+    fixedPrefixValue: '',
+  },
+  'fast-lsb': {
+    curve: 'secp256k1',
+    leakMode: 'lsb',
+    leakedBits: 24,
+    signatureCount: 12,
+    fixedPrefixVariant: 'random-tail',
+    fixedPrefixValue: '',
+  },
+  'p256-prefix': {
+    curve: 'p256',
+    leakMode: 'fixed-prefix',
+    leakedBits: 24,
+    signatureCount: 12,
+    fixedPrefixVariant: 'random-tail',
+    fixedPrefixValue: '',
+  },
   ps3: {
     curve: 'secp256k1',
     leakMode: 'fixed-constant',
@@ -25,64 +52,66 @@ const presets: Record<string, AppConfigView> = {
     fixedPrefixVariant: 'constant-nonce',
     fixedPrefixValue: '',
   },
-  minerva: {
-    curve: 'secp256k1',
-    leakMode: 'msb',
-    leakedBits: 3,
-    signatureCount: 100,
-    fixedPrefixVariant: 'random-tail',
-    fixedPrefixValue: '',
-  },
-  'deep-bias': {
-    curve: 'p256',
-    leakMode: 'lsb',
-    leakedBits: 8,
-    signatureCount: 20,
-    fixedPrefixVariant: 'random-tail',
-    fixedPrefixValue: '',
-  },
   defender: {
     curve: 'secp256k1',
     leakMode: 'rfc6979',
     leakedBits: 0,
-    signatureCount: 100,
+    signatureCount: 12,
     fixedPrefixVariant: 'random-tail',
     fixedPrefixValue: '',
   },
 };
-
-interface AnalysisBundle {
-  curve: CurveContext;
-  privateKey: bigint;
-  publicKey: Uint8Array;
-  signatures: SignatureRecord[];
-  recovery: RecoveryResult;
-  verificationPassed: boolean;
-  byteMatch: boolean;
-}
 
 interface AppState {
   config: AppConfigView;
   analysis: AnalysisBundle | null;
   loading: boolean;
   error: string | null;
+  elapsedMs: number;
 }
 
-function parseHexScalar(value: string): bigint | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return undefined;
+function loadSavedConfig(): AppConfigView {
+  try {
+    const raw = localStorage.getItem(STORAGE_CONFIG_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<AppConfigView>;
+      return normalizeConfig({ ...DEFAULT_CONFIG, ...parsed });
+    }
+  } catch {
+    // ignore
   }
-  return BigInt(`0x${trimmed.replace(/^0x/, '')}`);
+  return DEFAULT_CONFIG;
 }
 
-function buildLeakConfig(config: AppConfigView): LeakConfig {
+function saveConfig(config: AppConfigView): void {
+  try {
+    localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(config));
+  } catch {
+    // ignore
+  }
+}
+
+function normalizeConfig(config: AppConfigView): AppConfigView {
   return {
-    mode: config.leakMode,
-    bits: config.leakedBits,
-    fixedPrefixVariant: config.fixedPrefixVariant,
-    fixedPrefixValue: parseHexScalar(config.fixedPrefixValue),
+    ...config,
+    leakedBits: Math.max(0, Math.min(32, Math.trunc(config.leakedBits))),
+    signatureCount: Math.max(2, Math.min(MAX_SIGNATURE_COUNT, Math.trunc(config.signatureCount))),
+    fixedPrefixValue: config.fixedPrefixValue.trim(),
   };
+}
+
+function readConfig(form: HTMLFormElement): AppConfigView {
+  const formData = new FormData(form);
+  const leakMode = String(formData.get('leakMode') ?? 'msb') as LeakConfig['mode'];
+
+  return normalizeConfig({
+    curve: String(formData.get('curve') ?? 'secp256k1') as AppConfigView['curve'],
+    leakMode,
+    leakedBits: Number(formData.get('leakedBits') ?? 0),
+    signatureCount: Number(formData.get('signatureCount') ?? 2),
+    fixedPrefixVariant: String(formData.get('fixedPrefixVariant') ?? 'random-tail') as FixedPrefixVariant,
+    fixedPrefixValue: String(formData.get('fixedPrefixValue') ?? ''),
+  });
 }
 
 function scenarioDescription(config: AppConfigView): string {
@@ -93,34 +122,70 @@ function scenarioDescription(config: AppConfigView): string {
     return 'Deterministic nonces remove the leak, so the lattice should fail cleanly.';
   }
   if (config.leakMode === 'fixed-prefix') {
-    return 'The signer reuses a known prefix and leaves the tail random, mirroring a structural RNG bias.';
+    return 'Browser-safe demo preset: a 24-bit fixed prefix plus 12 signatures gives a fast, reliable lattice recovery.';
+  }
+  if (config.leakMode === 'msb') {
+    return 'Browser-safe demo preset: 24 known MSBs across 12 signatures recovers the key quickly without freezing the page.';
+  }
+  if (config.leakMode === 'lsb') {
+    return 'Browser-safe demo preset: 24 known LSBs across 12 signatures gives a sub-second lattice recovery in most runs.';
   }
   return 'Partial nonce leakage turns each signature into a bounded hidden number instance solved with LLL.';
 }
 
-function runAnalysis(config: AppConfigView): AnalysisBundle {
-  const curve = curveMap[config.curve];
-  const privateKey = randomScalar(curve);
-  const leakConfig = buildLeakConfig(config);
-  const generator = createNonceGenerator(leakConfig, curve, privateKey);
-  const signatures = Array.from({ length: config.signatureCount }, (_, index) => {
-    return sign(privateKey, `nonce-lattice sample ${index + 1}`, curve, leakConfig, index, generator);
-  });
-  const verificationPassed = signatures.every((signature) => verify(signature.publicKey, signature.digest, signature.r, signature.s, curve));
-  const recovery = recoverKey(signatures, leakConfig, curve);
-  const recoveredBytes = recovery.recoveredKey === null ? null : bigIntToBytes(recovery.recoveredKey, curve.orderBytes);
-  const actualBytes = bigIntToBytes(privateKey, curve.orderBytes);
-  const byteMatch = recoveredBytes !== null && recoveredBytes.every((value, index) => value === actualBytes[index]);
+type PipelineStatus = 'idle' | 'running' | 'success' | 'failed';
 
-  return {
-    curve,
-    privateKey,
-    publicKey: signatures[0]?.publicKey ?? curve.getPublicKey(actualBytes, false),
-    signatures,
-    recovery,
-    verificationPassed,
-    byteMatch,
-  };
+function renderPipeline(status: PipelineStatus): string {
+  const steps = [
+    { key: 'keygen',  label: 'Key Gen' },
+    { key: 'sign',    label: 'Sign' },
+    { key: 'hnp',     label: 'Build HNP' },
+    { key: 'lll',     label: 'LLL Reduce' },
+    { key: 'extract', label: 'Extract Key' },
+  ];
+
+  function stepClass(index: number): string {
+    if (status === 'idle') return '';
+    if (status === 'running') {
+      // animate the last step as "active", all previous as done
+      if (index < steps.length - 1) return 'done';
+      return 'active';
+    }
+    if (status === 'success') return 'done';
+    if (status === 'failed') {
+      if (index < steps.length - 1) return 'done';
+      return 'failed';
+    }
+    return '';
+  }
+
+  function stepIcon(index: number): string {
+    if (status === 'idle') return '';
+    if (status === 'running') {
+      if (index < steps.length - 1) return '✓ ';
+      return '';
+    }
+    if (status === 'success') return '✓ ';
+    if (status === 'failed') {
+      if (index < steps.length - 1) return '✓ ';
+      return '✗ ';
+    }
+    return '';
+  }
+
+  const stepsHtml = steps
+    .map((step, i) => {
+      const cls = stepClass(i);
+      const icon = stepIcon(i);
+      const spinner = (status === 'running' && i === steps.length - 1)
+        ? '<span class="spinner"></span>'
+        : '';
+      const sep = i < steps.length - 1 ? '<span class="pipeline-arrow" aria-hidden="true">›</span>' : '';
+      return `<span class="pipeline-step${cls ? ' ' + cls : ''}">${spinner}${icon}${step.label}</span>${sep}`;
+    })
+    .join('');
+
+  return `<div class="attack-pipeline" aria-label="Attack pipeline">${stepsHtml}</div>`;
 }
 
 function renderCaseStudies(): string {
@@ -215,16 +280,18 @@ function renderCrossReferences(): string {
 
 function renderApp(state: AppState): string {
   const { config, analysis, loading, error } = state;
+  const pipelineStatus: PipelineStatus = loading ? 'running' : error ? 'failed' : analysis ? (analysis.recovery.recoveredKey !== null ? 'success' : 'failed') : 'idle';
+
   const summary = loading
-    ? 'Running lattice analysis...'
+    ? `<span class="loading-label"><span class="spinner"></span> Running lattice analysis… <span class="elapsed-badge" id="elapsed-badge">${state.elapsedMs > 0 ? state.elapsedMs + ' ms' : '0 ms'}</span></span>`
     : error
       ? `Analysis failed: ${error}`
       : analysis === null
         ? 'Choose a preset or submit parameters to run the attack.'
-      : analysis?.recovery.recoveredKey === null
-        ? 'Analysis complete: no matching key recovered for this run.'
-        : 'Attack recovered the exact signing key.';
-  const landingCard = `Recover ECDSA private keys from partial nonce leakage - real signatures, real LLL lattice reduction, real byte-for-byte key recovery.`;
+        : analysis.recovery.recoveredKey === null
+          ? 'Analysis complete: no matching key recovered for this run.'
+          : `Attack recovered the exact signing key in ${analysis.elapsedMs} ms.`;
+  const landingCard = 'Recover ECDSA private keys from partial nonce leakage — real signatures, real LLL lattice reduction, real byte-for-byte key recovery.';
   const analysisBody = loading
     ? `
         <section class="panel">
@@ -234,7 +301,7 @@ function renderApp(state: AppState): string {
               <h2>Running computations</h2>
             </div>
           </div>
-          <p class="muted">Generating signatures, reducing lattices, and checking key candidates...</p>
+          <p class="muted">Generating signatures, reducing the HNP lattice, and checking key candidates in a background worker so the page stays responsive.</p>
         </section>
       `
     : error
@@ -250,31 +317,31 @@ function renderApp(state: AppState): string {
         </section>
       `
       : analysis === null
-      ? `
-        <section class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">Analysis</p>
-              <h2>Ready to run</h2>
+        ? `
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Analysis</p>
+                <h2>Ready to run</h2>
+              </div>
             </div>
-          </div>
-          <p class="muted">The dashboard is loaded. Select a scenario preset or click Generate Attack to run the full nonce-lattice workflow.</p>
-        </section>
-      `
-      : `
-        ${renderRecoveryPanel({
-          curve: analysis!.curve,
-          actualKey: analysis!.privateKey,
-          recoveredKey: analysis!.recovery.recoveredKey,
-          publicKey: analysis!.publicKey,
-          byteMatch: analysis!.byteMatch,
-          verificationPassed: analysis!.verificationPassed,
-          trace: analysis!.recovery.trace,
-        })}
-        ${renderSignatureLog(analysis!.signatures, analysis!.curve)}
-        ${renderLatticeView(analysis!.recovery.trace)}
-        ${renderBasisView(analysis!.recovery.trace)}
-      `;
+            <p class="muted">Select a scenario preset or click Generate Attack to run the full nonce-lattice workflow.</p>
+          </section>
+        `
+        : `
+          ${renderRecoveryPanel({
+            curve: analysis.curve,
+            actualKey: analysis.privateKey,
+            recoveredKey: analysis.recovery.recoveredKey,
+            publicKey: analysis.publicKey,
+            byteMatch: analysis.byteMatch,
+            verificationPassed: analysis.verificationPassed,
+            trace: analysis.recovery.trace,
+          })}
+          ${renderSignatureLog(analysis.signatures, analysis.curve)}
+          ${renderLatticeView(analysis.recovery.trace)}
+          ${renderBasisView(analysis.recovery.trace)}
+        `;
 
   const metaPanel = analysis
     ? `
@@ -292,15 +359,19 @@ function renderApp(state: AppState): string {
           </article>
           <article>
             <span>Public Key</span>
-            <code>${bytesToHex(analysis.publicKey).slice(0, 56)}...</code>
+            <code>${bytesToHex(analysis.publicKey).slice(0, 56)}…</code>
           </article>
           <article>
             <span>Signing Key</span>
-            <code>${formatScalar(analysis.privateKey, analysis.curve.orderBytes).slice(0, 56)}...</code>
+            <code>${formatScalar(analysis.privateKey, analysis.curve.orderBytes).slice(0, 56)}…</code>
           </article>
           <article>
             <span>Signatures</span>
             <strong>${analysis.signatures.length}</strong>
+          </article>
+          <article>
+            <span>Worker runtime</span>
+            <strong>${analysis.elapsedMs} ms</strong>
           </article>
         </div>
       </section>
@@ -312,15 +383,17 @@ function renderApp(state: AppState): string {
     <div class="app-shell">
       <header class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Attacks</p>
-          <h1>crypto-lab-nonce-lattice</h1>
+          <p class="eyebrow">Attacks · ECDSA · Lattice Crypto</p>
+          <h1>Nonce Lattice Lab</h1>
           <p class="lead">${landingCard}</p>
           <div class="chip-row">
             <span>ECDSA</span>
             <span>Hidden Number Problem</span>
-            <span>LLL</span>
+            <span>LLL Reduction</span>
             <span>Nonce Bias</span>
+            <span>secp256k1 / P-256</span>
           </div>
+          ${renderPipeline(pipelineStatus)}
           <p class="scenario-line">${scenarioDescription(config)}</p>
           <p class="summary-line">${summary}</p>
         </div>
@@ -328,7 +401,7 @@ function renderApp(state: AppState): string {
           class="theme-toggle"
           data-theme-toggle
           aria-label="Switch to light mode"
-          style="position: absolute; top: 0; right: 0;"
+          style="position: absolute; top: 1rem; right: 1rem;"
           type="button"
         >🌙</button>
       </header>
@@ -338,8 +411,8 @@ function renderApp(state: AppState): string {
         ${renderCaseStudies()}
         ${renderTimeline()}
         ${renderCrossReferences()}
+        ${metaPanel}
       </main>
-      ${metaPanel}
     </div>
   `;
 }
@@ -350,17 +423,85 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
   }
 
   const state: AppState = {
-    config: {
-      curve: 'secp256k1',
-      leakMode: 'msb',
-      leakedBits: 4,
-      signatureCount: 40,
-      fixedPrefixVariant: 'random-tail',
-      fixedPrefixValue: '',
-    },
+    config: loadSavedConfig(),
     analysis: null,
     loading: false,
     error: null,
+    elapsedMs: 0,
+  };
+  let activeRequestId = 0;
+  let analysisWorker = createAnalysisWorker();
+  let elapsedInterval: ReturnType<typeof setInterval> | null = null;
+  let elapsedStart = 0;
+
+  function createAnalysisWorker(): Worker {
+    const worker = new Worker(new URL('./analysis-worker.ts', import.meta.url), { type: 'module' });
+    worker.addEventListener('message', (event: MessageEvent<AnalysisResponse>) => {
+      if (event.data.requestId !== activeRequestId) {
+        return;
+      }
+
+      stopElapsedTimer();
+      state.loading = false;
+      if (event.data.error) {
+        state.analysis = null;
+        state.error = event.data.error;
+      } else {
+        state.analysis = event.data.analysis ?? null;
+        state.error = null;
+      }
+      rerender();
+    });
+    worker.addEventListener('error', () => {
+      if (!state.loading) {
+        return;
+      }
+
+      stopElapsedTimer();
+      state.loading = false;
+      state.analysis = null;
+      state.error = 'Background analysis worker failed.';
+      rerender();
+    });
+    return worker;
+  }
+
+  function startElapsedTimer(): void {
+    stopElapsedTimer();
+    elapsedStart = Date.now();
+    state.elapsedMs = 0;
+    elapsedInterval = setInterval(() => {
+      state.elapsedMs = Date.now() - elapsedStart;
+      const badge = document.getElementById('elapsed-badge');
+      if (badge) {
+        badge.textContent = state.elapsedMs + ' ms';
+      }
+    }, 100);
+  }
+
+  function stopElapsedTimer(): void {
+    if (elapsedInterval !== null) {
+      clearInterval(elapsedInterval);
+      elapsedInterval = null;
+    }
+  }
+
+  const queueAnalysis = (config: AppConfigView) => {
+    state.config = normalizeConfig(config);
+    saveConfig(state.config);
+    state.loading = true;
+    state.error = null;
+    state.elapsedMs = 0;
+    activeRequestId += 1;
+    analysisWorker.terminate();
+    analysisWorker = createAnalysisWorker();
+    rerender();
+    startElapsedTimer();
+    const request: AnalysisRequest = {
+      requestId: activeRequestId,
+      config: state.config,
+    };
+    analysisWorker.postMessage(request);
   };
 
   const rerender = () => {
@@ -373,57 +514,34 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
         if (!preset || !presets[preset]) {
           return;
         }
-        state.config = { ...presets[preset] };
-          state.loading = true;
-          state.error = null;
-        rerender();
-          setTimeout(() => {
-            try {
-              state.analysis = runAnalysis(state.config);
-              state.error = null;
-            } catch (analysisError) {
-              state.analysis = null;
-              state.error = analysisError instanceof Error ? analysisError.message : 'Unknown analysis error.';
-            } finally {
-              state.loading = false;
-              rerender();
-            }
-          }, 0);
+        queueAnalysis({ ...presets[preset] });
       });
     });
 
     const form = root.querySelector<HTMLFormElement>('#attack-config-form');
     form?.addEventListener('submit', (event) => {
       event.preventDefault();
-      const formData = new FormData(form);
-      const leakMode = String(formData.get('leakMode') ?? 'msb') as LeakConfig['mode'];
-      state.config = {
-        curve: String(formData.get('curve') ?? 'secp256k1') as AppConfigView['curve'],
-        leakMode,
-        leakedBits: Number(formData.get('leakedBits') ?? 0),
-        signatureCount: Number(formData.get('signatureCount') ?? 2),
-        fixedPrefixVariant: String(formData.get('fixedPrefixVariant') ?? 'random-tail') as FixedPrefixVariant,
-        fixedPrefixValue: String(formData.get('fixedPrefixValue') ?? ''),
-      };
-        state.loading = true;
-        state.error = null;
-      rerender();
-        setTimeout(() => {
-          try {
-            state.analysis = runAnalysis(state.config);
-            state.error = null;
-          } catch (analysisError) {
-            state.analysis = null;
-            state.error = analysisError instanceof Error ? analysisError.message : 'Unknown analysis error.';
-          } finally {
-            state.loading = false;
-            rerender();
-          }
-        }, 0);
+      queueAnalysis(readConfig(form));
+    });
+
+    // Copy-to-clipboard buttons
+    root.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const text = btn.dataset.copy ?? '';
+        navigator.clipboard?.writeText(text).then(() => {
+          btn.classList.add('copied');
+          btn.textContent = 'copied!';
+          setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.textContent = 'copy';
+          }, 1800);
+        }).catch(() => {/* silently ignore copy failures */});
+      });
     });
 
     onRender?.();
   };
 
   rerender();
+  queueAnalysis(state.config);
 }

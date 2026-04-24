@@ -1,3 +1,29 @@
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(125, 211, 252, 0.55); }
+  70%  { box-shadow: 0 0 0 12px rgba(125, 211, 252, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(125, 211, 252, 0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes success-pop {
+  0%   { transform: scale(0.94); opacity: 0; }
+  60%  { transform: scale(1.03); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 :root {
   --page-bg: #0f1218;
   --surface: rgba(22, 28, 37, 0.84);
@@ -33,6 +59,12 @@
   --hover-surface: rgba(241, 234, 223, 0.98);
   --hero-bg: radial-gradient(circle at top left, rgba(15, 118, 110, 0.15), transparent 35%), radial-gradient(circle at top right, rgba(194, 65, 12, 0.15), transparent 26%), linear-gradient(180deg, rgba(251, 247, 240, 0.98), rgba(241, 233, 219, 1));
   color-scheme: light;
+}
+
+
+
+* {
+  box-sizing: border-box;
 }
 
 * {
@@ -185,6 +217,7 @@ h2 {
   backdrop-filter: blur(16px);
   box-shadow: 0 18px 50px var(--shadow-color);
   padding: 1.2rem;
+  animation: fade-in-up 0.35s ease both;
 }
 
 .panel-heading {
@@ -344,6 +377,7 @@ td {
 .recovery-banner.success {
   background: rgba(74, 222, 128, 0.16);
   color: var(--success);
+  animation: success-pop 0.45s cubic-bezier(0.34,1.56,0.64,1) both;
 }
 
 .recovery-banner.failure {
@@ -437,6 +471,188 @@ summary {
   border-top: 1px solid var(--border-color);
   margin-top: 2rem;
 }
+
+/* ── Attack pipeline ─────────────────────────────────────────── */
+.attack-pipeline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 1rem 0 0.5rem;
+}
+
+.pipeline-step {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+
+.pipeline-step.active {
+  background: rgba(125, 211, 252, 0.14);
+  border-color: var(--accent);
+  color: var(--accent);
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+
+.pipeline-step.done {
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.35);
+  color: var(--success);
+}
+
+.pipeline-step.failed {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.35);
+  color: var(--danger);
+}
+
+.pipeline-arrow {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  opacity: 0.5;
+  padding: 0 0.15rem;
+  user-select: none;
+}
+
+/* ── Loading spinner ─────────────────────────────────────────── */
+.spinner {
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 2px solid rgba(125, 211, 252, 0.22);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.72s linear infinite;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.loading-label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text-muted);
+}
+
+.elapsed-badge {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 0.15rem 0.7rem;
+  color: var(--accent);
+}
+
+/* ── Copy button ─────────────────────────────────────────────── */
+.copy-btn {
+  border: 1px solid var(--border-color);
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  border-radius: 8px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.76rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  font-family: "IBM Plex Sans", sans-serif;
+}
+
+.copy-btn:hover {
+  background: var(--hover-surface);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.copy-btn.copied {
+  border-color: rgba(74, 222, 128, 0.4);
+  color: var(--success);
+}
+
+/* ── Key card with copy ──────────────────────────────────────── */
+.key-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.2rem;
+}
+
+/* ── Key comparison ──────────────────────────────────────────── */
+.key-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.key-compare-row {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.78rem;
+}
+
+.key-byte {
+  padding: 0.15rem 0.3rem;
+  border-radius: 4px;
+  background: var(--surface-soft);
+}
+
+.key-byte.match {
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--success);
+}
+
+.key-byte.mismatch {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--danger);
+}
+
+/* ── Prose card ──────────────────────────────────────────────── */
+.prose-card p {
+  margin: 0.5rem 0;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+.prose-card p:first-of-type {
+  margin-top: 0.75rem;
+}
+
+/* ── h1 gradient text ────────────────────────────────────────── */
+h1 {
+  background: linear-gradient(130deg, var(--text-primary) 40%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Preset buttons enhanced ─────────────────────────────────── */
+.preset-button[data-preset="ps3"] {
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.preset-button[data-preset="defender"] {
+  border-color: rgba(74, 222, 128, 0.4);
+}
+
+/* ── Staggered panel entrance ─────────────────────────────────── */
+.dashboard-grid > *:nth-child(1) { animation-delay: 0ms; }
+.dashboard-grid > *:nth-child(2) { animation-delay: 50ms; }
+.dashboard-grid > *:nth-child(3) { animation-delay: 100ms; }
+.dashboard-grid > *:nth-child(4) { animation-delay: 150ms; }
+.dashboard-grid > *:nth-child(5) { animation-delay: 200ms; }
+.dashboard-grid > *:nth-child(6) { animation-delay: 250ms; }
 
 @media (max-width: 960px) {
   .dashboard-grid,

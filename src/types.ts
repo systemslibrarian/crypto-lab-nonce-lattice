@@ -4,6 +4,15 @@ export type LeakMode = 'rfc6979' | 'msb' | 'lsb' | 'fixed-prefix' | 'fixed-const
 
 export type FixedPrefixVariant = 'random-tail' | 'constant-nonce';
 
+export interface AppConfigView {
+  curve: CurveName;
+  leakMode: LeakMode;
+  leakedBits: number;
+  signatureCount: number;
+  fixedPrefixVariant: FixedPrefixVariant;
+  fixedPrefixValue: string;
+}
+
 export interface KnownNonceLeak {
   kind: 'msb' | 'lsb' | 'fixed-prefix';
   bits: number;
