@@ -206,24 +206,24 @@ function renderCaseStudies(): string {
       </div>
       <div class="details-stack">
         <details open>
-          <summary>PS3 (2010)</summary>
-          <p>Sony reused the same nonce k across firmware signatures. If two signatures share r, then k = (h1 - h2)/(s1 - s2) mod n and d = (s1k - h1)/r mod n.</p>
+          <summary>PS3 (2010) — Sony firmware nonce reuse</summary>
+          <p>Sony signed every PlayStation 3 firmware update with the same ECDSA nonce <code>k</code>. Because <code>k</code> is identical across signatures, the <code>r</code> values match, and two equations in two unknowns collapse immediately: <code>k = (h₁ − h₂)(s₁ − s₂)⁻¹ mod n</code>, then <code>d = (s₁k − h₁)r⁻¹ mod n</code>. The private key that protects the entire console signing chain fell to arithmetic a first-year student could follow. George Hotz published the recovery in January 2010, the same week he demoed it on stage at the Chaos Communication Congress.</p>
         </details>
         <details>
-          <summary>Android Bitcoin wallet bug (2013)</summary>
-          <p>Weak SecureRandom output produced repeated or biased ECDSA nonces, which let attackers reconstruct wallet keys and drain funds.</p>
+          <summary>Android Bitcoin wallet bug (2013) — broken SecureRandom</summary>
+          <p>In August 2013 a flaw in Android's <code>SecureRandom</code> PRNG caused the JVM entropy pool to be seeded with the same value across process restarts on certain devices. Bitcoin wallets using ECDSA over secp256k1 produced signatures where <code>k</code> repeated across different transactions — sometimes across different users on the same ROM build. Matching <code>r</code> values in the blockchain were detectable by anyone scanning for them, and the private keys followed immediately. Researchers scanned the public ledger, found the collisions, and the Bitcoin Security team issued an emergency patch within days. Wallet funds were drained in the window before users updated.</p>
         </details>
         <details>
-          <summary>Bleichenbacher-Blake-Wilson 2002</summary>
-          <p>The original Hidden Number Problem framing showed how partial nonce information in DSA-style signatures can be converted into a lattice instance.</p>
+          <summary>Bleichenbacher / Howgrave-Graham &amp; Smart (1998–2002) — the lattice framing</summary>
+          <p>Daniel Bleichenbacher first observed in 1998 that even a small number of known nonce bits reduces ECDSA key recovery to a shortest-vector problem. Howgrave-Graham and Smart formalized this in 2002 as the <em>Hidden Number Problem</em>: each biased signature contributes one linear congruence over ℤ/nℤ, and stacking enough of them builds a lattice whose shortest vector encodes the secret key. They proved that leaking as few as <code>log₂(n)/2</code> bits per nonce — about 128 bits on a 256-bit curve — is sufficient for recovery with a polynomial number of signatures. This is the direct theoretical basis for the attack demonstrated in this lab.</p>
         </details>
         <details>
-          <summary>Minerva (2019)</summary>
-          <p>A timing side channel on modular inversion leaked top nonce bits from smart cards, putting real ECDSA keys into the same reduction used here.</p>
+          <summary>Minerva (2019) — smart-card timing leak</summary>
+          <p>Researchers at Masaryk University discovered that several smart-card and HSM implementations of ECDSA — including chips from Infineon, NXP, and Gemalto — used scalar multiplication routines whose execution time depended on the bit-length of the nonce <code>k</code>. Measuring response times over a local USB or contactless reader was enough to recover the top few bits of <code>k</code> for each signature. With roughly 2,000 to 4,000 timed queries, the Hidden Number Problem lattice had enough constraints to recover the long-term private key. The same chip appeared in YubiKey 4 and JavaCard products certified for government use.</p>
         </details>
         <details>
-          <summary>TPM-FAIL (2019)</summary>
-          <p>Intel fTPM and STMicroelectronics implementations leaked ECDSA nonce information through timing, enabling recovery with enough traces.</p>
+          <summary>TPM-FAIL (2019) — Intel fTPM and STMicro leaking nonce bits</summary>
+          <p>Moghimi, Sunar, Eisenbarth, and Heninger showed that both the Intel firmware TPM (fTPM) running on the Management Engine and a certified STMicroelectronics discrete TPM chip leaked ECDSA nonce information through timing. On the Intel fTPM, the modular inversion step during signing varied by up to 10,000 cycles depending on the nonce value, measurable from userspace via <code>rdtsc</code> with no special privileges. On the ST chip, the leak was observable over a network from the same rack. With a few thousand measurements and a straightforward HNP lattice reduction, both the P-256 and P-384 private keys stored in the TPM could be extracted — keys that protect disk encryption, remote attestation, and platform integrity on affected machines.</p>
         </details>
       </div>
     </section>
