@@ -22,6 +22,10 @@ export interface AnalysisBundle {
   elapsedMs: number;
 }
 
+/** Structured-clone-safe version sent over the worker postMessage boundary.
+ *  `curve` is replaced by `curveId` so no class instances cross the wire. */
+export type WireAnalysisBundle = Omit<AnalysisBundle, 'curve'> & { curveId: string };
+
 export interface AnalysisRequest {
   requestId: number;
   config: AppConfigView;
@@ -29,7 +33,7 @@ export interface AnalysisRequest {
 
 export interface AnalysisResponse {
   requestId: number;
-  analysis?: AnalysisBundle;
+  analysis?: WireAnalysisBundle;
   error?: string;
 }
 

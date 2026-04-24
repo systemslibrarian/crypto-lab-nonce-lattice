@@ -1,11 +1,18 @@
 import { type AnalysisBundle, type AnalysisRequest, type AnalysisResponse } from './analysis';
 import { bytesToHex, formatScalar } from './crypto/modular';
+import { p256Curve } from './curves/p256';
+import { secp256k1Curve } from './curves/secp256k1';
 import { renderBasisView } from './ui/basis-view';
 import { renderConfigPanel } from './ui/config-panel';
 import { renderLatticeView } from './ui/lattice-view';
 import { renderRecoveryPanel } from './ui/recovery-panel';
 import { renderSignatureLog } from './ui/signature-log';
-import type { AppConfigView, FixedPrefixVariant, LeakConfig } from './types';
+import type { AppConfigView, CurveContext, FixedPrefixVariant, LeakConfig } from './types';
+
+const curveMap: Record<string, CurveContext> = {
+  secp256k1: secp256k1Curve,
+  p256: p256Curve,
+};
 
 const MAX_SIGNATURE_COUNT = 32;
 const STORAGE_CONFIG_KEY = 'nonce-lattice-config';
@@ -440,8 +447,13 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
       if (event.data.error) {
         state.analysis = null;
         state.error = event.data.error;
+      } else if (event.data.analysis) {
+        const wire = event.data.analysis;
+        const curve = curveMap[wire.curveId] ?? secp256k1Curve;
+        state.analysis = { ...wire, curve } satisfies AnalysisBundle;
+        state.error = null;
       } else {
-        state.analysis = event.data.analysis ?? null;
+        state.analysis = null;
         state.error = null;
       }
       rerender();
