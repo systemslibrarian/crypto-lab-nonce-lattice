@@ -1,4 +1,4 @@
-import { type AnalysisBundle, type AnalysisRequest, type AnalysisResponse } from './analysis';
+import { runAnalysis, type AnalysisBundle, type AnalysisRequest, type AnalysisResponse } from './analysis';
 import { bytesToHex, formatScalar } from './crypto/modular';
 import { p256Curve } from './curves/p256';
 import { secp256k1Curve } from './curves/secp256k1';
@@ -13,6 +13,10 @@ const curveMap: Record<string, CurveContext> = {
   secp256k1: secp256k1Curve,
   p256: p256Curve,
 };
+
+function isCloneSerializationError(message: string): boolean {
+  return /could not be cloned|DataCloneError/i.test(message);
+}
 
 const MAX_SIGNATURE_COUNT = 32;
 const STORAGE_CONFIG_KEY = 'nonce-lattice-config';
@@ -445,8 +449,19 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
       stopElapsedTimer();
       state.loading = false;
       if (event.data.error) {
-        state.analysis = null;
-        state.error = event.data.error;
+        if (isCloneSerializationError(event.data.error)) {
+          // Fallback for stale worker bundles that still post non-cloneable data.
+          try {
+            state.analysis = runAnalysis(state.config);
+            state.error = null;
+          } catch (fallbackError) {
+            state.analysis = null;
+            state.error = fallbackError instanceof Error ? fallbackError.message : event.data.error;
+          }
+        } else {
+          state.analysis = null;
+          state.error = event.data.error;
+        }
       } else if (event.data.analysis) {
         const wire = event.data.analysis;
         const curve = curveMap[wire.curveId] ?? secp256k1Curve;
