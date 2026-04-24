@@ -199,6 +199,58 @@ function renderPipeline(status: PipelineStatus): string {
   return `<div class="attack-pipeline" aria-label="Attack pipeline">${stepsHtml}</div>`;
 }
 
+function renderHowItWorks(config: AppConfigView, analysis: AnalysisBundle | null): string {
+  const leakExplanation =
+    config.leakMode === 'msb'
+      ? `In this run, the attacker is assumed to know the top ${config.leakedBits} bits of each nonce k. That shrinks each unknown nonce to a bounded error term, which is exactly what the HNP lattice expects.`
+      : config.leakMode === 'lsb'
+        ? `In this run, the attacker is assumed to know the bottom ${config.leakedBits} bits of each nonce k. The code rescales each signature equation so the unknown part is centered and bounded before lattice construction.`
+        : config.leakMode === 'fixed-prefix'
+          ? `In this run, each nonce shares a fixed high-bit prefix and differs only in the tail. That gives repeated structure across signatures and creates the bounded variables needed for key recovery.`
+          : config.leakMode === 'fixed-constant'
+            ? 'This run is a nonce-reuse case. If two signatures share the same r, the secret key can be solved algebraically without lattice reduction.'
+            : 'This run uses RFC 6979 deterministic nonces. With no nonce leakage, the lattice should not recover the key.';
+
+  const statusExplanation = analysis
+    ? analysis.recovery.recoveredKey === null
+      ? 'Result: no valid private key candidate matched the public key for this parameter set.'
+      : `Result: recovered key candidate verified against Q = dG in ${analysis.elapsedMs} ms.`
+    : 'Run a preset or submit parameters to generate signatures and see each attack stage populate below.';
+
+  return `
+    <section class="panel span-two explain-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Walkthrough</p>
+          <h2>What this run is doing</h2>
+        </div>
+      </div>
+      <div class="explain-grid">
+        <article class="callout">
+          <h3>1) ECDSA equation behind every signature</h3>
+          <p>Each signature satisfies <code>s = k⁻¹(h + r·d) mod n</code>, where <code>d</code> is the secret key, <code>k</code> is the nonce, <code>h</code> is the message hash scalar, and <code>r,s</code> are public signature values.</p>
+          <p>Rearranged, this is a linear congruence: <code>r·d − s·k + h ≡ 0 (mod n)</code>. One signature gives one equation, but both <code>d</code> and <code>k</code> are unknown.</p>
+        </article>
+        <article class="callout">
+          <h3>2) Why leakage changes everything</h3>
+          <p>${leakExplanation}</p>
+          <p>After centering/scaling, each signature contributes a bounded error term. Stacking those constraints produces a Hidden Number Problem instance.</p>
+        </article>
+        <article class="callout">
+          <h3>3) Lattice stage</h3>
+          <p>The app builds a basis matrix from all signature constraints, applies LLL reduction, then searches short vectors (or Babai nearest-plane) for a candidate secret scalar.</p>
+          <p>If the reduced vector encodes <code>d</code>, the app validates it by recomputing the public key and comparing bytes against the signer key.</p>
+        </article>
+        <article class="callout">
+          <h3>4) Verification stage</h3>
+          <p>${statusExplanation}</p>
+          <p>Panels below show the exact signatures, basis before/after LLL, reduced vector lengths, and diagnostics from the recovery path used in this run.</p>
+        </article>
+      </div>
+    </section>
+  `;
+}
+
 function renderCaseStudies(): string {
   return `
     <section class="panel span-two">
@@ -413,6 +465,7 @@ function renderApp(state: AppState): string {
       <main class="dashboard-grid" id="main-content" tabindex="-1">
         ${renderConfigPanel(config)}
         ${analysisBody}
+        ${renderHowItWorks(config, analysis)}
         ${renderCaseStudies()}
         ${renderTimeline()}
         ${renderCrossReferences()}
