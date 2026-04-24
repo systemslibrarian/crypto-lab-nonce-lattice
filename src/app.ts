@@ -397,13 +397,7 @@ function renderApp(state: AppState): string {
           <p class="scenario-line">${scenarioDescription(config)}</p>
           <p class="summary-line">${summary}</p>
         </div>
-        <button
-          class="theme-toggle"
-          data-theme-toggle
-          aria-label="Switch to light mode"
-          style="position: absolute; top: 1rem; right: 1rem;"
-          type="button"
-        >🌙</button>
+
       </header>
       <main class="dashboard-grid" id="main-content" tabindex="-1">
         ${renderConfigPanel(config)}
