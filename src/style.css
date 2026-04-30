@@ -1,3 +1,97 @@
+/* Accessibility and Mobile Enhancements */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Ensure high contrast for buttons and focus */
+.primary-button,
+.preset-button,
+.theme-toggle,
+.cl-nav-btn {
+  border-width: 2px;
+  border-color: var(--accent);
+  color: var(--surface-strong);
+  background: linear-gradient(120deg, var(--accent), var(--accent-strong));
+}
+
+.primary-button:focus-visible,
+.preset-button:focus-visible,
+.theme-toggle:focus-visible,
+.cl-nav-btn:focus-visible {
+  outline: 3px solid var(--accent-strong);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--accent-strong);
+}
+
+/* Ensure visible focus for all interactive elements */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 3px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* Improve color contrast for text */
+.cl-title, h1, h2, h3, h4, h5, h6 {
+  color: #fff !important;
+  text-shadow: 0 1px 2px #0008;
+}
+
+/* Responsive font sizes for mobile */
+html {
+  font-size: 16px;
+}
+@media (max-width: 480px) {
+  html {
+    font-size: 15px;
+  }
+  .cl-header, .app-shell, .panel, .hero {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}
+
+/* Skip to main content link for screen readers */
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: 0.5rem;
+  z-index: 1000;
+  background: var(--surface-strong);
+  color: var(--text-primary);
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1rem;
+  transform: translateY(-180%);
+  transition: transform 0.2s;
+}
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+/* Ensure table scroll on mobile */
+table, .table-shell, .matrix-shell {
+  overflow-x: auto;
+  display: block;
+  width: 100%;
+}
+
+/* ARIA live region for status messages */
+#status-message[aria-live] {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: translateY(0); }
