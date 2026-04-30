@@ -12,7 +12,7 @@ A browser-based educational demo of ECDSA nonce leakage and lattice-based key re
 - For teaching, labs, and cryptography exercises
 
 ## 3. Live Demo
-[Live Demo URL here]
+[https://systemslibrarian.github.io/crypto-lab-nonce-lattice/](https://systemslibrarian.github.io/crypto-lab-nonce-lattice/)
 
 ## 4. How to Run Locally
 ```bash

@@ -12,19 +12,22 @@ export interface Preset {
   realityLabel: string;
 }
 
+import { secp256k1_msb_24bits } from './secp256k1-msb-24bits';
+import { secp256k1_lsb_24bits } from './secp256k1-lsb-24bits';
+import { secp256k1_fixed_prefix } from './secp256k1-fixed-prefix';
+import { p256_msb_24bits } from './p256-msb-24bits';
+import { repeated_nonce } from './repeated-nonce';
+import { rfc6979_defender } from './rfc6979-defender';
+
 export const presets: Preset[] = [
-  // Example preset
-  {
-    name: 'secp256k1-msb-24bits',
-    curve: 'secp256k1',
-    mode: 'msb',
-    signatureCount: 8,
-    leakedBits: 24,
-    seed: 'fixture-seed-1',
-    expectedResult: 'demo-key',
-    runtime: 'fast',
-    explanation: 'MSB 24 bits leaked, secp256k1, known-good demo.',
-    realityLabel: 'Educational Leakage Model',
-  },
-  // Add more presets in separate files
+  secp256k1_msb_24bits,
+  secp256k1_lsb_24bits,
+  secp256k1_fixed_prefix,
+  p256_msb_24bits,
+  repeated_nonce,
+  rfc6979_defender,
 ];
+
+export function getPreset(name: string): Preset | undefined {
+  return presets.find(p => p.name === name);
+}
