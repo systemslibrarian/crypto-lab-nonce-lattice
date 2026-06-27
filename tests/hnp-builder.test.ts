@@ -12,7 +12,9 @@ describe('HNP Builder', () => {
     const leakConfig = { mode: 'msb' };
     const hnp = buildHnpInstance(signatures as any, leakConfig as any, secp256k1);
     expect(hnp).toBeDefined();
-    expect(hnp?.basis.length).toBe(2);
+    // Standard HNP (Boneh-Venkatesan) lattice for d samples is (d+1)x(d+1):
+    // d modular-reduction rows plus one t-values/bound row. d=2 -> 3x3.
+    expect(hnp?.basis.length).toBe(3);
     expect(hnp?.basis[0].length).toBe(3);
   });
 });

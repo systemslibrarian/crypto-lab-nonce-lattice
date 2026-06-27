@@ -1,9 +1,7 @@
 // Deterministic fixture RNG for reproducible tests and demos
 export class FixtureRNG {
-  private seed: string;
   private state: number;
   constructor(seed: string) {
-    this.seed = seed;
     this.state = this.hash(seed);
   }
   private hash(str: string): number {
