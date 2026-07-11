@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:a11y": "playwright test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -16,6 +17,8 @@
     "@noble/hashes": "^1.8.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.61.1",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "vitest": "^1.0.0"
