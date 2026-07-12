@@ -519,17 +519,18 @@ function renderApp(state: AppState): string {
   return `
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="app-shell">
-      <header class="hero">
-        <div class="cl-hero">
+      <div class="hero">
+        <header class="cl-hero">
           <div class="cl-hero-main">
             <h1 class="cl-hero-title">Nonce Lattice</h1>
-            <p class="cl-hero-sub">ECDSA key recovery · Hidden Number Problem · LLL</p>
+            <p class="cl-hero-sub">ECDSA · Hidden Number Problem · LLL</p>
+            <p class="cl-hero-desc">Signs messages with biased or reused ECDSA nonces, then rebuilds those signatures as a lattice and runs LLL to recover the signer's private key in your browser.</p>
           </div>
           <aside class="cl-hero-why" aria-label="Why it matters">
             <span class="cl-hero-why-label">WHY IT MATTERS</span>
-            <p class="cl-hero-why-text">ECDSA leaks your private key if its one-time nonce is biased or reused. A few such signatures become a lattice problem LLL solves in seconds — the flaw that stole real Bitcoin and PlayStation 3 keys.</p>
+            <p class="cl-hero-why-text">A single leaked bit of nonce randomness can hand an attacker your signing key. This exact flaw drained real Bitcoin wallets and cracked the PlayStation 3, so every ECDSA implementation must nail its nonces.</p>
           </aside>
-        </div>
+        </header>
         <div class="hero-copy">
           <p class="eyebrow">Attacks · ECDSA · Lattice Crypto</p>
           <p class="lead">${landingCard}</p>
@@ -545,7 +546,7 @@ function renderApp(state: AppState): string {
           <p class="summary-line">${summary}</p>
         </div>
 
-      </header>
+      </div>
       <main class="dashboard-grid" id="main-content" tabindex="-1">
         ${renderConfigPanel(config)}
         <div id="feasibility-slot" class="span-two">${renderFeasibility(config, curveMap[config.curve] ?? secp256k1Curve)}</div>
