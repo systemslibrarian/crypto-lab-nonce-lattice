@@ -520,9 +520,18 @@ function renderApp(state: AppState): string {
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="app-shell">
       <header class="hero">
+        <div class="cl-hero">
+          <div class="cl-hero-main">
+            <h1 class="cl-hero-title">Nonce Lattice</h1>
+            <p class="cl-hero-sub">ECDSA key recovery · Hidden Number Problem · LLL</p>
+          </div>
+          <aside class="cl-hero-why" aria-label="Why it matters">
+            <span class="cl-hero-why-label">WHY IT MATTERS</span>
+            <p class="cl-hero-why-text">ECDSA leaks your private key if its one-time nonce is biased or reused. A few such signatures become a lattice problem LLL solves in seconds — the flaw that stole real Bitcoin and PlayStation 3 keys.</p>
+          </aside>
+        </div>
         <div class="hero-copy">
           <p class="eyebrow">Attacks · ECDSA · Lattice Crypto</p>
-          <h1>Nonce Lattice Lab</h1>
           <p class="lead">${landingCard}</p>
           <div class="chip-row">
             <span>ECDSA</span>
