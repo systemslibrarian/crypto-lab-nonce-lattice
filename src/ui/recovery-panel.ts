@@ -93,8 +93,8 @@ export function renderRecoveryPanel(data: RecoveryPanelData): string {
             <ul>
               <li>Every ECDSA signature is produced with real secp256k1 or P-256 arithmetic.</li>
               <li>Every scalar multiplication uses the actual curve base point and order.</li>
-              <li>LLL reduction runs on bigint matrices with exact rational Gram-Schmidt.</li>
-              <li>The HNP lattice uses the Nguyen-Shparlinski reduction and validates the recovered key through Q = dG.</li>
+              <li>LLL reduction runs on exact bigint lattice vectors; the Gram-Schmidt coefficients that steer the reduction are computed in floating point (an approximate/heuristic LLL), which is why recovery needs enough signatures to clear the numerical margin.</li>
+              <li>The HNP lattice uses the Nguyen-Shparlinski reduction and validates the recovered key through Q = dG, so a reported hit is always a real key match.</li>
             </ul>
             <p><strong>Simulated for browser context:</strong></p>
             <ul>

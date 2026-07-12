@@ -54,7 +54,7 @@ npm run dev
 
 ## License
 
-Add chosen open-source license here.
+Released under the [MIT License](LICENSE). Copyright (c) 2026 systemslibrarian.
 
 ---
 
