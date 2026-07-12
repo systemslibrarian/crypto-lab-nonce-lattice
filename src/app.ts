@@ -2,8 +2,11 @@ import { runAnalysis, type AnalysisBundle, type AnalysisRequest, type AnalysisRe
 import { bytesToHex, formatScalar } from './crypto/modular';
 import { p256Curve } from './curves/p256';
 import { secp256k1Curve } from './curves/secp256k1';
+import { renderAttackVsDefensePanel } from './ui/attack-vs-defense-panel';
 import { renderBasisView } from './ui/basis-view';
 import { renderConfigPanel } from './ui/config-panel';
+import { getDiagnostic } from './ui/diagnostics';
+import { renderFeasibility } from './ui/feasibility';
 import { renderLatticeView } from './ui/lattice-view';
 import { renderRecoveryPanel } from './ui/recovery-panel';
 import { renderSignatureLog } from './ui/signature-log';
@@ -79,6 +82,7 @@ interface AppState {
   loading: boolean;
   error: string | null;
   elapsedMs: number;
+  pipelineStage: number;
 }
 
 function loadSavedConfig(): AppConfigView {
@@ -146,52 +150,45 @@ function scenarioDescription(config: AppConfigView): string {
 
 type PipelineStatus = 'idle' | 'running' | 'success' | 'failed';
 
-function renderPipeline(status: PipelineStatus): string {
-  const steps = [
-    { key: 'keygen',  label: 'Key Gen' },
-    { key: 'sign',    label: 'Sign' },
-    { key: 'hnp',     label: 'Build HNP' },
-    { key: 'lll',     label: 'LLL Reduce' },
-    { key: 'extract', label: 'Extract Key' },
-  ];
+const PIPELINE_STEPS = [
+  { key: 'keygen',  label: 'Key Gen' },
+  { key: 'sign',    label: 'Sign' },
+  { key: 'hnp',     label: 'Build HNP' },
+  { key: 'lll',     label: 'LLL Reduce' },
+  { key: 'extract', label: 'Extract Key' },
+];
+
+/** `stage` is how many steps have finished so far (0..steps.length). While running we
+ *  advance it on a short timer so the pipeline actually walks the sequence instead of
+ *  flipping the first four to done instantly. The final step only resolves when the
+ *  worker returns success/failure. */
+function renderPipeline(status: PipelineStatus, stage: number): string {
+  const steps = PIPELINE_STEPS;
+  const last = steps.length - 1;
 
   function stepClass(index: number): string {
     if (status === 'idle') return '';
-    if (status === 'running') {
-      // animate the last step as "active", all previous as done
-      if (index < steps.length - 1) return 'done';
-      return 'active';
-    }
     if (status === 'success') return 'done';
-    if (status === 'failed') {
-      if (index < steps.length - 1) return 'done';
-      return 'failed';
-    }
+    if (status === 'failed') return index < last ? 'done' : 'failed';
+    // running: steps below `stage` are done, the step at `stage` is active
+    if (index < stage) return 'done';
+    if (index === stage) return 'active';
     return '';
   }
 
   function stepIcon(index: number): string {
     if (status === 'idle') return '';
-    if (status === 'running') {
-      if (index < steps.length - 1) return '✓ ';
-      return '';
-    }
     if (status === 'success') return '✓ ';
-    if (status === 'failed') {
-      if (index < steps.length - 1) return '✓ ';
-      return '✗ ';
-    }
-    return '';
+    if (status === 'failed') return index < last ? '✓ ' : '✗ ';
+    return index < stage ? '✓ ' : '';
   }
 
   const stepsHtml = steps
     .map((step, i) => {
       const cls = stepClass(i);
       const icon = stepIcon(i);
-      const spinner = (status === 'running' && i === steps.length - 1)
-        ? '<span class="spinner"></span>'
-        : '';
-      const sep = i < steps.length - 1 ? '<span class="pipeline-arrow" aria-hidden="true">›</span>' : '';
+      const spinner = status === 'running' && i === stage ? '<span class="spinner"></span>' : '';
+      const sep = i < last ? '<span class="pipeline-arrow" aria-hidden="true">›</span>' : '';
       return `<span class="pipeline-step${cls ? ' ' + cls : ''}">${spinner}${icon}${step.label}</span>${sep}`;
     })
     .join('');
@@ -341,6 +338,83 @@ function renderCrossReferences(): string {
   `;
 }
 
+function classifyFailureReason(config: AppConfigView, analysis: AnalysisBundle): string {
+  if (config.leakMode === 'rfc6979') return 'defender-mode';
+  if (config.leakMode === 'fixed-constant') return 'lattice-failure';
+  if (config.signatureCount < 8 || config.leakedBits < 12) return 'not-enough-signatures';
+  void analysis;
+  return 'lattice-failure';
+}
+
+/** Revives the authored Attack Path / Defense Path scaffolding (dead code until now)
+ *  and, on a failed run, surfaces the matching plain-language diagnostic. This is the
+ *  step-by-step map of the whole attack the panel labels only hint at. */
+function renderAttackWorkflow(config: AppConfigView, analysis: AnalysisBundle | null): string {
+  const failed = analysis !== null && analysis.recovery.recoveredKey === null;
+  const diagnostic = failed
+    ? `<p class="workflow-diagnostic" role="status">${getDiagnostic(classifyFailureReason(config, analysis))}</p>`
+    : '';
+  return `
+    <section class="panel span-two workflow-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Step-by-step</p>
+          <h2>Attack workflow vs. defense</h2>
+        </div>
+      </div>
+      <p class="muted">The attack is a fixed pipeline; each defense removes one rung. The
+      interactive panels below walk the left column with the real numbers from your run.</p>
+      ${renderAttackVsDefensePanel()}
+      ${diagnostic}
+    </section>
+  `;
+}
+
+/** MEDIUM #5: for nonce reuse (PS3), the whole recovery is two lines of algebra a
+ *  newcomer can follow with no lattice theory. Show them with the real r/s/h/k/d. */
+function renderNonceReuseDerivation(analysis: AnalysisBundle): string {
+  const alg = analysis.recovery.trace.algebra;
+  if (!alg) return '';
+  const b = analysis.curve.orderBytes;
+  const clip = (v: bigint): string => {
+    const hex = formatScalar(v, b);
+    return hex.length > 24 ? `${hex.slice(0, 12)}…${hex.slice(-8)}` : hex;
+  };
+  return `
+    <section class="panel span-two reuse-derivation">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Worked derivation — nonce reuse</p>
+          <h2>Two signatures, no lattice needed</h2>
+        </div>
+      </div>
+      <p class="muted">Because the same nonce <code>k</code> signed both messages, the two
+      signatures share the same <code>r</code>. That collapses two equations in two unknowns
+      into direct arithmetic — the exact break behind the 2010 PS3 key recovery:</p>
+      <div class="derivation-steps">
+        <div class="derivation-step">
+          <span class="step-tag">1. same nonce ⟹ same r</span>
+          <code>r₁ = r₂ = ${clip(alg.r)}</code>
+        </div>
+        <div class="derivation-step">
+          <span class="step-tag">2. solve for the nonce k</span>
+          <code>k = (h₁ − h₂)·(s₁ − s₂)⁻¹ mod n</code>
+          <code class="derivation-sub">= (${clip(alg.h1)} − ${clip(alg.h2)})·(${clip(alg.s1)} − ${clip(alg.s2)})⁻¹</code>
+          <code class="derivation-result">k = ${clip(alg.k)}</code>
+        </div>
+        <div class="derivation-step">
+          <span class="step-tag">3. solve for the private key d</span>
+          <code>d = (s₁·k − h₁)·r₁⁻¹ mod n</code>
+          <code class="derivation-sub">= (${clip(alg.s1)}·${clip(alg.k)} − ${clip(alg.h1)})·${clip(alg.r)}⁻¹</code>
+          <code class="derivation-result derivation-key">d = ${clip(alg.d)}</code>
+        </div>
+      </div>
+      <p class="muted">Every number above is from this run; the recovered <code>d</code> matches the
+      signer's key byte-for-byte in the panel above.</p>
+    </section>
+  `;
+}
+
 function renderApp(state: AppState): string {
   const { config, analysis, loading, error } = state;
   const pipelineStatus: PipelineStatus = loading ? 'running' : error ? 'failed' : analysis ? (analysis.recovery.recoveredKey !== null ? 'success' : 'failed') : 'idle';
@@ -401,8 +475,9 @@ function renderApp(state: AppState): string {
             verificationPassed: analysis.verificationPassed,
             trace: analysis.recovery.trace,
           })}
+          ${renderNonceReuseDerivation(analysis)}
           ${renderSignatureLog(analysis.signatures, analysis.curve)}
-          ${renderLatticeView(analysis.recovery.trace)}
+          ${renderLatticeView(analysis.recovery.trace, analysis.curve)}
           ${renderBasisView(analysis.recovery.trace)}
         `;
 
@@ -456,7 +531,7 @@ function renderApp(state: AppState): string {
             <span>Nonce Bias</span>
             <span>secp256k1 / P-256</span>
           </div>
-          ${renderPipeline(pipelineStatus)}
+          ${renderPipeline(pipelineStatus, state.pipelineStage)}
           <p class="scenario-line">${scenarioDescription(config)}</p>
           <p class="summary-line">${summary}</p>
         </div>
@@ -464,6 +539,8 @@ function renderApp(state: AppState): string {
       </header>
       <main class="dashboard-grid" id="main-content" tabindex="-1">
         ${renderConfigPanel(config)}
+        <div id="feasibility-slot" class="span-two">${renderFeasibility(config, curveMap[config.curve] ?? secp256k1Curve)}</div>
+        ${renderAttackWorkflow(config, analysis)}
         ${analysisBody}
         ${renderHowItWorks(config, analysis)}
         ${renderCaseStudies()}
@@ -475,10 +552,11 @@ function renderApp(state: AppState): string {
   `;
 }
 
-export function mountApp(root: HTMLDivElement | null, onRender?: () => void): void {
-  if (!root) {
+export function mountApp(rootOrNull: HTMLDivElement | null, onRender?: () => void): void {
+  if (!rootOrNull) {
     throw new Error('App root not found');
   }
+  const root: HTMLDivElement = rootOrNull;
 
   const state: AppState = {
     config: loadSavedConfig(),
@@ -486,11 +564,13 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
     loading: false,
     error: null,
     elapsedMs: 0,
+    pipelineStage: 0,
   };
   let activeRequestId = 0;
   let analysisWorker = createAnalysisWorker();
   let elapsedInterval: ReturnType<typeof setInterval> | null = null;
   let elapsedStart = 0;
+  let pipelineInterval: ReturnType<typeof setInterval> | null = null;
 
   function createAnalysisWorker(): Worker {
     const worker = new Worker(new URL('./analysis-worker.ts', import.meta.url), { type: 'module' });
@@ -500,6 +580,7 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
       }
 
       stopElapsedTimer();
+      stopPipelineTimer();
       state.loading = false;
       if (event.data.error) {
         if (isCloneSerializationError(event.data.error)) {
@@ -532,6 +613,7 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
       }
 
       stopElapsedTimer();
+      stopPipelineTimer();
       state.loading = false;
       state.analysis = null;
       state.error = 'Background analysis worker failed.';
@@ -560,6 +642,33 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
     }
   }
 
+  function stopPipelineTimer(): void {
+    if (pipelineInterval !== null) {
+      clearInterval(pipelineInterval);
+      pipelineInterval = null;
+    }
+  }
+
+  // Walk Key Gen › Sign › Build HNP › LLL, one rung every ~300ms, so the sequence is
+  // shown as a process. The last step (Extract Key) stays active until the worker
+  // returns the real result, so we never fake the outcome — only the ordering reveal.
+  function startPipelineTimer(): void {
+    stopPipelineTimer();
+    state.pipelineStage = 0;
+    const lastAdvanceable = PIPELINE_STEPS.length - 1; // stop before the final step
+    pipelineInterval = setInterval(() => {
+      if (state.pipelineStage < lastAdvanceable) {
+        state.pipelineStage += 1;
+        const pipelineEl = root.querySelector('.attack-pipeline');
+        if (pipelineEl && state.loading) {
+          pipelineEl.outerHTML = renderPipeline('running', state.pipelineStage);
+        }
+      } else {
+        stopPipelineTimer();
+      }
+    }, 300);
+  }
+
   const queueAnalysis = (config: AppConfigView) => {
     state.config = normalizeConfig(config);
     saveConfig(state.config);
@@ -571,6 +680,7 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
     analysisWorker = createAnalysisWorker();
     rerender();
     startElapsedTimer();
+    startPipelineTimer();
     const request: AnalysisRequest = {
       requestId: activeRequestId,
       config: state.config,
@@ -597,6 +707,20 @@ export function mountApp(root: HTMLDivElement | null, onRender?: () => void): vo
       event.preventDefault();
       queueAnalysis(readConfig(form));
     });
+
+    // Live feasibility: re-render just the gauge as the learner drags bits/signatures
+    // or changes leak mode/curve, without re-running the (expensive) lattice attack.
+    if (form) {
+      const updateFeasibility = () => {
+        const liveConfig = readConfig(form);
+        const slot = root.querySelector<HTMLDivElement>('#feasibility-slot');
+        if (slot) {
+          slot.innerHTML = renderFeasibility(liveConfig, curveMap[liveConfig.curve] ?? secp256k1Curve);
+        }
+      };
+      form.addEventListener('input', updateFeasibility);
+      form.addEventListener('change', updateFeasibility);
+    }
 
     // Copy-to-clipboard buttons
     root.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((btn) => {

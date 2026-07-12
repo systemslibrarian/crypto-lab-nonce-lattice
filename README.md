@@ -4,6 +4,8 @@
 
 A browser-based educational demo of ECDSA nonce leakage and lattice-based key recovery. Shows how partial nonce leakage or reuse can be exploited using the Hidden Number Problem and LLL/Babai lattice reduction. For classroom and self-study use only.
 
+It is built for progressive disclosure: a newcomer gets the intuition up front (a live feasibility gauge that shows when leakage is enough, a byte-for-byte key-recovery grid, and — for the nonce-reuse case — a fully worked two-signature derivation with the real numbers), while the Lattice View surfaces the single conceptual leap for deeper readers by outlining the winning short vector and showing that its secret coordinate divided by the scaling bound *is* the private key (`secretCoordinate / B mod n = d`).
+
 **Warning:** This is an educational tool. It does not break real-world cryptosystems. See `docs/limitations.md` and `SECURITY.md`.
 
 ## When to Use It
@@ -17,7 +19,7 @@ A browser-based educational demo of ECDSA nonce leakage and lattice-based key re
 
 **[systemslibrarian.github.io/crypto-lab-nonce-lattice](https://systemslibrarian.github.io/crypto-lab-nonce-lattice/)**
 
-The demo lets you generate ECDSA signatures with deliberately leaked or biased nonce bits, then assembles the Hidden Number Problem lattice and runs LLL/Babai reduction to recover the private key. You can vary how many signatures and how many leaked bits per signature are available and watch the recovery succeed or fail, making the relationship between leakage and attack feasibility concrete.
+The demo lets you generate ECDSA signatures with deliberately leaked or biased nonce bits, then assembles the Hidden Number Problem lattice and runs LLL/Babai reduction to recover the private key. Drag the leaked-bits and signature-count controls and the feasibility gauge marks your configuration against the information floor and this demo's numerical boundary, so you can sweep a slider until recovery starts failing and watch the boundary cross. On a successful run the Lattice View outlines the winning short vector and reads the key straight out of it, and a byte grid shows every reconstructed byte of the private key. This makes the relationship between leakage and attack feasibility concrete rather than asserted.
 
 ## What Can Go Wrong
 

@@ -25,7 +25,7 @@ export function renderSignatureLog(records: SignatureRecord[], curve: CurveConte
           <h2>Signature Log</h2>
         </div>
       </div>
-      <div class="table-shell">
+      <div class="table-shell" tabindex="0" role="region" aria-label="Signature log table (scrollable)">
         <table>
           <caption>Captured ECDSA signature components and leaked nonce metadata.</caption>
           <thead>

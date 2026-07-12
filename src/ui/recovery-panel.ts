@@ -12,7 +12,9 @@ export interface RecoveryPanelData {
 }
 
 function renderKeyCompare(actual: string, recovered: string | null): string {
-  if (!recovered || actual === recovered) return '';
+  // Render even on a perfect match (the default, expected outcome). An all-green
+  // 32-byte grid is the demo's best emotional beat — "every byte came back."
+  if (!recovered) return '';
   const maxLen = Math.max(actual.length, recovered.length);
   const a = actual.padStart(maxLen, '0');
   const r = recovered.padStart(maxLen, '0');
@@ -23,6 +25,8 @@ function renderKeyCompare(actual: string, recovered: string | null): string {
     aBytes.push(a.slice(i, i + 2));
     rBytes.push(r.slice(i, i + 2));
   }
+  const matchedCount = aBytes.filter((b, i) => b === rBytes[i]).length;
+  const allMatch = matchedCount === aBytes.length;
   const aHtml = aBytes.map((b, i) => {
     const cls = b === rBytes[i] ? 'match' : 'mismatch';
     return `<span class="key-byte ${cls}">${b}</span>`;
@@ -31,10 +35,18 @@ function renderKeyCompare(actual: string, recovered: string | null): string {
     const cls = b === aBytes[i] ? 'match' : 'mismatch';
     return `<span class="key-byte ${cls}">${b}</span>`;
   }).join('');
+  const caption = allMatch
+    ? `every one of the ${aBytes.length} bytes of the private key was reconstructed from public signatures + leaked nonce bits.`
+    : `${matchedCount} of ${aBytes.length} bytes matched — the recovered candidate is not the signing key (recovery did not fully succeed for this configuration).`;
   return `
     <div class="key-compare">
+      <div class="key-compare-labels">
+        <span>signer's actual key</span>
+        <span>recovered from the attack</span>
+      </div>
       <div class="key-compare-row" aria-label="Actual key bytes">${aHtml}</div>
       <div class="key-compare-row" aria-label="Recovered key bytes">${rHtml}</div>
+      <p class="key-compare-caption ${allMatch ? 'success' : 'partial'}">${caption}</p>
     </div>`;
 }
 

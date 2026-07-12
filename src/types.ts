@@ -80,6 +80,29 @@ export interface AttackTrace {
   basisBefore?: bigint[][];
   basisAfter?: bigint[][];
   reducedLengths?: bigint[];
+  /** Index (into basisAfter) of the reduced row whose secret coordinate revealed d.
+   *  For 'babai' this is the last (embedding/target) row of the reduced CVP basis. */
+  winningRowIndex?: number;
+  /** The row[len-2] entry of the winning short vector: secretCoordinate = ±d · bound. */
+  secretCoordinate?: bigint;
+  /** The HNP scaling bound B; secretCoordinate / bound (mod n) = the recovered scalar. */
+  bound?: bigint;
+  /** The scalar that secretCoordinate / bound resolved to (equals d on success). */
+  recoveredScalar?: bigint;
+  /** The two-signature nonce-reuse worked derivation, populated only in 'algebra' mode. */
+  algebra?: AlgebraDerivation;
+}
+
+/** Step-by-step numbers for the PS3-style repeated-nonce recovery, so the UI can
+ *  show the actual arithmetic (k, then d) with the real r/s/h values. */
+export interface AlgebraDerivation {
+  r: bigint;
+  h1: bigint;
+  h2: bigint;
+  s1: bigint;
+  s2: bigint;
+  k: bigint;
+  d: bigint;
 }
 
 export interface RecoveryResult {

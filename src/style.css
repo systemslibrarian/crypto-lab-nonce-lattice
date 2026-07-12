@@ -938,3 +938,350 @@ h1 {
     scroll-behavior: auto !important;
   }
 }
+/* ── Winning short vector + key bridge (Lattice View) ────────────── */
+.lattice-intro {
+  margin: 0.4rem 0 0.9rem;
+  line-height: 1.6;
+}
+
+.winning-row {
+  position: relative;
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 1px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.08);
+}
+
+:root[data-theme='light'] .winning-row {
+  background: rgba(194, 65, 12, 0.09);
+}
+
+.winning-badge {
+  grid-column: 1 / -1;
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--accent-strong);
+  text-transform: uppercase;
+  padding: 0 0.2rem 0.15rem;
+}
+
+.matrix-cell.secret-cell {
+  outline: 2px solid var(--success);
+  color: var(--success);
+  font-weight: 700;
+  background: rgba(74, 222, 128, 0.12);
+}
+
+:root[data-theme='light'] .matrix-cell.secret-cell {
+  background: rgba(21, 128, 61, 0.12);
+}
+
+.key-bridge {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent-strong);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.key-bridge p {
+  margin: 0.4rem 0;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.key-bridge .eyebrow {
+  color: var(--accent-strong);
+}
+
+.bridge-equation {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border-color);
+  overflow-x: auto;
+}
+
+.bridge-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+}
+
+.bridge-num {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-family: "IBM Plex Sans", sans-serif;
+}
+
+.bridge-op {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.bridge-result {
+  margin-top: 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.bridge-key {
+  color: var(--success);
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.bridge-tag {
+  color: var(--success);
+  font-family: "IBM Plex Sans", sans-serif;
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+/* ── Inline glossary term ────────────────────────────────────────── */
+.gloss {
+  border-bottom: 1px dotted var(--accent);
+  cursor: help;
+  color: inherit;
+}
+
+.gloss:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* ── Key comparison labels + caption ─────────────────────────────── */
+.key-compare-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.key-compare-caption {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.key-compare-caption.success {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.key-compare-caption.partial {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* ── Feasibility gauge ───────────────────────────────────────────── */
+.feasibility-intro {
+  margin: 0.4rem 0 0.8rem;
+  line-height: 1.6;
+}
+
+.feasibility-badge {
+  align-self: center;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+}
+
+.feasibility-badge.feasible {
+  color: var(--success);
+  border-color: rgba(74, 222, 128, 0.4);
+  background: rgba(74, 222, 128, 0.1);
+}
+
+.feasibility-badge.marginal {
+  color: var(--accent-strong);
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.feasibility-badge.infeasible {
+  color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.1);
+}
+
+:root[data-theme='light'] .feasibility-badge.marginal {
+  background: rgba(194, 65, 12, 0.1);
+}
+
+.feasibility-plot-wrap {
+  margin: 0.5rem 0;
+  max-width: 26rem;
+}
+
+.feasibility-svg {
+  width: 100%;
+  height: auto;
+  background: var(--surface-strong);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  display: block;
+}
+
+.feasibility-svg .axis {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+}
+
+.feasibility-svg .axis-label {
+  fill: var(--text-primary);
+  font-size: 9px;
+  font-family: "IBM Plex Sans", sans-serif;
+  text-anchor: middle;
+}
+
+.feasibility-svg .floor-curve {
+  stroke: var(--danger);
+  stroke-width: 1.6;
+  stroke-dasharray: 4 3;
+}
+
+.feasibility-svg .practical-curve {
+  stroke: var(--accent-strong);
+  stroke-width: 1.8;
+}
+
+.feasibility-svg .marker {
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+}
+
+.feasibility-svg .marker-feasible { fill: var(--success); }
+.feasibility-svg .marker-marginal { fill: var(--accent-strong); }
+.feasibility-svg .marker-infeasible { fill: var(--danger); }
+
+.feasibility-region {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.feasibility-region.region-feasible { color: var(--success); }
+.feasibility-region.region-marginal { color: var(--accent-strong); }
+.feasibility-region.region-infeasible { color: var(--danger); }
+
+/* ── Attack workflow / attack-vs-defense panel ───────────────────── */
+.attack-defense-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin-top: 0.8rem;
+}
+
+.attack-path,
+.defense-path {
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-soft);
+}
+
+.attack-path {
+  border-left: 3px solid var(--danger);
+}
+
+.defense-path {
+  border-left: 3px solid var(--success);
+}
+
+.attack-path h3,
+.defense-path h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.attack-path ol,
+.defense-path ol {
+  margin: 0;
+  padding-left: 1.2rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.attack-path code,
+.defense-path code {
+  color: var(--text-primary);
+}
+
+.workflow-diagnostic {
+  margin-top: 0.9rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--accent-strong);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+:root[data-theme='light'] .workflow-diagnostic {
+  background: rgba(194, 65, 12, 0.1);
+}
+
+/* ── Nonce-reuse worked derivation ───────────────────────────────── */
+.derivation-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0.8rem 0;
+}
+
+.derivation-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-soft);
+}
+
+.derivation-step .step-tag {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.derivation-step code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.derivation-sub {
+  color: var(--text-muted) !important;
+  font-size: 0.78rem !important;
+}
+
+.derivation-result {
+  color: var(--accent-strong) !important;
+  font-weight: 700;
+}
+
+.derivation-key {
+  color: var(--success) !important;
+}

@@ -24,7 +24,7 @@ export function renderBasisView(trace: AttackTrace): string {
           <h2>Basis View</h2>
         </div>
       </div>
-      <div class="table-shell compact-table">
+      <div class="table-shell compact-table" tabindex="0" role="region" aria-label="Lattice vector lengths table (scrollable)">
         <table>
           <caption>Squared lattice vector lengths before and after LLL reduction.</caption>
           <thead>
