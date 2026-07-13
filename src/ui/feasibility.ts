@@ -122,6 +122,15 @@ export function renderFeasibility(config: AppConfigView, curve: CurveContext): s
       </div>
       <p class="feasibility-region region-${region}">${regionLabel}</p>
       ${note}
+      <p class="feasibility-reality">
+        <strong>Reading the axes honestly.</strong> This gauge uses small leak sizes (up to ${MAX_BITS} bits)
+        and counts (up to ${MAX_SIGS} signatures) on reduced, browser-fast parameters. On a real
+        ${curve.bits}-bit curve like secp256k1, the classic Nguyen–Shparlinski / HNP result says you need
+        only about <strong>${glossTerm('log₂(n)/2', 'Half the bit-length of the curve order — the theoretical minimum nonce leakage per signature for polynomial-time recovery.')} ≈ ${Math.round(curve.bits / 2)} bits</strong>
+        of nonce leakage per signature to recover <code>d</code> from a polynomial number of signatures.
+        The on-screen boundary is the analogue of that bound at this demo's scale — don't read the
+        specific numbers here as thresholds for real secp256k1.
+      </p>
     </section>
   `;
 }

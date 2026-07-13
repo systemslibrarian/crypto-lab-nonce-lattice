@@ -83,6 +83,8 @@ interface AppState {
   error: string | null;
   elapsedMs: number;
   pipelineStage: number;
+  /** Which guided-walkthrough step tab is showing (sign | build | reduce | extract). */
+  activeStep: string;
 }
 
 function loadSavedConfig(): AppConfigView {
@@ -415,8 +417,68 @@ function renderNonceReuseDerivation(analysis: AnalysisBundle): string {
   `;
 }
 
+/** Always-visible on-ramp: the one equation the whole attack turns on, shown before any
+ *  deep panel so a newcomer meets the concept before the machinery. */
+function renderEcdsaCallout(): string {
+  return `
+    <section class="panel span-two ecdsa-callout">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Start here</p>
+          <h2>The one equation everything hangs on</h2>
+        </div>
+      </div>
+      <p class="callout-lead">Every ECDSA signature satisfies</p>
+      <p class="callout-equation"><code>s = k⁻¹(h + r·d) mod n</code></p>
+      <p class="muted">
+        <code>d</code> is the secret key, <code>k</code> is the one-time <em>nonce</em>, <code>h</code>
+        is the message hash, and <code>r, s</code> are the public signature. Rearranged, it is a linear
+        congruence <code>r·d − s·k + h ≡ 0 (mod n)</code> with two unknowns, <code>d</code> and <code>k</code>.
+        The attack's whole job is to remove enough of the unknown <code>k</code> — via leaked bits or
+        reuse — that <code>d</code> falls out. Set a scenario above, then walk the steps below.
+      </p>
+    </section>
+  `;
+}
+
+/** Guided walkthrough: gate the deep analysis panels behind four step tabs that mirror the
+ *  pipeline strip (Sign → Build HNP → Reduce → Extract), so a newcomer follows an order
+ *  instead of hitting the lattice matrices first. Purely presentational; JS in rerender()
+ *  toggles which panel is visible. Content is the real analysis output, unchanged. */
+const GUIDED_STEPS: Array<{ key: string; label: string; blurb: string }> = [
+  { key: 'sign', label: '1 · Sign', blurb: 'The captured signatures and their leaked nonce bits — the raw evidence.' },
+  { key: 'build', label: '2 · Build HNP', blurb: 'How each signature becomes one lattice row, and the full starting basis.' },
+  { key: 'reduce', label: '3 · Reduce', blurb: 'LLL shortens the basis; watch the vectors collapse and see the key row surface.' },
+  { key: 'extract', label: '4 · Extract', blurb: 'Read the private key out of the short vector and verify it byte-for-byte.' },
+];
+
+function renderStepTabs(activeKey: string): string {
+  const tabs = GUIDED_STEPS.map((step, i) => {
+    const active = step.key === activeKey;
+    return `<button class="step-tab${active ? ' active' : ''}" type="button" role="tab"
+      aria-selected="${active ? 'true' : 'false'}" data-step-tab="${step.key}"
+      id="step-tab-${step.key}" aria-controls="step-panel-${step.key}">${step.label}</button>${
+      i < GUIDED_STEPS.length - 1 ? '<span class="step-tab-arrow" aria-hidden="true">›</span>' : ''
+    }`;
+  }).join('');
+  return `<div class="step-tabs" role="tablist" aria-label="Guided attack walkthrough">${tabs}</div>`;
+}
+
+function renderGuidedStep(key: string, activeKey: string, body: string): string {
+  const step = GUIDED_STEPS.find((s) => s.key === key)!;
+  const hidden = key !== activeKey;
+  return `
+    <div class="step-panel${hidden ? ' step-hidden' : ''}" id="step-panel-${key}"
+         role="tabpanel" aria-labelledby="step-tab-${key}"${hidden ? ' hidden' : ''}>
+      <p class="step-blurb">${step.blurb}</p>
+      <div class="step-grid">${body}</div>
+    </div>
+  `;
+}
+
 function renderApp(state: AppState): string {
   const { config, analysis, loading, error } = state;
+  const activeStep = state.activeStep;
   const pipelineStatus: PipelineStatus = loading ? 'running' : error ? 'failed' : analysis ? (analysis.recovery.recoveredKey !== null ? 'success' : 'failed') : 'idle';
 
   const summary = loading
@@ -465,21 +527,34 @@ function renderApp(state: AppState): string {
             <p class="muted">Select a scenario preset or click Generate Attack to run the full nonce-lattice workflow.</p>
           </section>
         `
-        : `
-          ${renderRecoveryPanel({
-            curve: analysis.curve,
-            actualKey: analysis.privateKey,
-            recoveredKey: analysis.recovery.recoveredKey,
-            publicKey: analysis.publicKey,
-            byteMatch: analysis.byteMatch,
-            verificationPassed: analysis.verificationPassed,
-            trace: analysis.recovery.trace,
-          })}
-          ${renderNonceReuseDerivation(analysis)}
-          ${renderSignatureLog(analysis.signatures, analysis.curve)}
-          ${renderLatticeView(analysis.recovery.trace, analysis.curve)}
-          ${renderBasisView(analysis.recovery.trace)}
-        `;
+        : [
+            // STEP 1 — Sign: the raw evidence.
+            renderGuidedStep('sign', activeStep, renderSignatureLog(analysis.signatures, analysis.curve)),
+            // STEP 2 — Build HNP: signature → row → basis (row construction lives in Lattice View
+            // "before" matrix, but the Attack workflow map belongs here as the plan of the build).
+            renderGuidedStep('build', activeStep, renderAttackWorkflow(config, analysis)),
+            // STEP 3 — Reduce: the lattice geometry + before/after matrices + basis lengths.
+            renderGuidedStep(
+              'reduce',
+              activeStep,
+              renderLatticeView(analysis.recovery.trace, analysis.curve, analysis.signatures) +
+                renderBasisView(analysis.recovery.trace),
+            ),
+            // STEP 4 — Extract: read out d, verify it, and (for reuse) the two-line algebra.
+            renderGuidedStep(
+              'extract',
+              activeStep,
+              renderRecoveryPanel({
+                curve: analysis.curve,
+                actualKey: analysis.privateKey,
+                recoveredKey: analysis.recovery.recoveredKey,
+                publicKey: analysis.publicKey,
+                byteMatch: analysis.byteMatch,
+                verificationPassed: analysis.verificationPassed,
+                trace: analysis.recovery.trace,
+              }) + renderNonceReuseDerivation(analysis),
+            ),
+          ].join('');
 
   const metaPanel = analysis
     ? `
@@ -550,12 +625,28 @@ function renderApp(state: AppState): string {
       <main class="dashboard-grid" id="main-content" tabindex="-1">
         ${renderConfigPanel(config)}
         <div id="feasibility-slot" class="span-two">${renderFeasibility(config, curveMap[config.curve] ?? secp256k1Curve)}</div>
-        ${renderAttackWorkflow(config, analysis)}
+        ${renderEcdsaCallout()}
+        ${analysis ? `<div class="span-two guided-walkthrough">
+          <div class="panel-heading guided-heading">
+            <div>
+              <p class="eyebrow">Guided walkthrough</p>
+              <h2>Follow the attack step by step</h2>
+            </div>
+          </div>
+          <p class="muted guided-lead">These four tabs mirror the pipeline above. Move left to right —
+          each step builds on the last, so the deep lattice panels come only after the intuition.</p>
+          ${renderStepTabs(activeStep)}
+        </div>` : ''}
         ${analysisBody}
         ${renderHowItWorks(config, analysis)}
-        ${renderCaseStudies()}
-        ${renderTimeline()}
-        ${renderCrossReferences()}
+        <details class="history-section span-two">
+          <summary><span class="history-eyebrow">History &amp; context</span> Real-world case studies, timeline, and related labs</summary>
+          <div class="history-body">
+            ${renderCaseStudies()}
+            ${renderTimeline()}
+            ${renderCrossReferences()}
+          </div>
+        </details>
         ${metaPanel}
       </main>
     </div>
@@ -575,6 +666,7 @@ export function mountApp(rootOrNull: HTMLDivElement | null, onRender?: () => voi
     error: null,
     elapsedMs: 0,
     pipelineStage: 0,
+    activeStep: 'sign',
   };
   let activeRequestId = 0;
   let analysisWorker = createAnalysisWorker();
@@ -685,6 +777,7 @@ export function mountApp(rootOrNull: HTMLDivElement | null, onRender?: () => voi
     state.loading = true;
     state.error = null;
     state.elapsedMs = 0;
+    state.activeStep = 'sign';
     activeRequestId += 1;
     analysisWorker.terminate();
     analysisWorker = createAnalysisWorker();
@@ -731,6 +824,27 @@ export function mountApp(rootOrNull: HTMLDivElement | null, onRender?: () => voi
       form.addEventListener('input', updateFeasibility);
       form.addEventListener('change', updateFeasibility);
     }
+
+    // Guided walkthrough step tabs: switch which step panel is visible without a full
+    // re-render (so we don't re-run the attack or restart the LLL animation unnecessarily).
+    const stepTabs = root.querySelectorAll<HTMLButtonElement>('[data-step-tab]');
+    stepTabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const key = tab.dataset.stepTab;
+        if (!key) return;
+        state.activeStep = key;
+        stepTabs.forEach((t) => {
+          const selected = t.dataset.stepTab === key;
+          t.classList.toggle('active', selected);
+          t.setAttribute('aria-selected', selected ? 'true' : 'false');
+        });
+        root.querySelectorAll<HTMLElement>('.step-panel').forEach((panel) => {
+          const show = panel.id === `step-panel-${key}`;
+          panel.classList.toggle('step-hidden', !show);
+          panel.hidden = !show;
+        });
+      });
+    });
 
     // Copy-to-clipboard buttons
     root.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((btn) => {

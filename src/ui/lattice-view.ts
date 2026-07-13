@@ -1,5 +1,6 @@
 import { formatScalar } from '../crypto/modular';
-import type { AttackTrace, CurveContext } from '../types';
+import { renderLatticeProjection } from './lattice-projection';
+import type { AttackTrace, CurveContext, SignatureRecord } from '../types';
 
 interface MatrixOptions {
   /** Row index to visually mark as the winning short vector (only for basisAfter). */
@@ -80,7 +81,72 @@ function renderKeyBridge(trace: AttackTrace, curve: CurveContext): string {
   `;
 }
 
-export function renderLatticeView(trace: AttackTrace, curve: CurveContext): string {
+/** MEDIUM: connect one visible signature to one visible basis row. Take signature #1
+ *  and the first row of the starting basis and show, side by side, how r/s/h become the
+ *  entries of a lattice row — so the leap from "bounded congruence" to "matrix of huge
+ *  integers" is motivated, not just asserted. The numbers are the real ones from the run. */
+function renderRowConstruction(trace: AttackTrace, signatures: SignatureRecord[] | undefined, curve: CurveContext): string {
+  const before = trace.basisBefore;
+  if (!before || before.length < 2 || !signatures || signatures.length === 0) {
+    return '';
+  }
+  // The last row of the starting basis is the "constraint" row [t₀ … t_{N-1}, bound]:
+  // it is the one built directly from the signatures, so its entries are the tᵢ values.
+  const constraintRow = before[before.length - 1];
+  if (!constraintRow || trace.bound === undefined) return '';
+
+  const sig = signatures[0];
+  const b = curve.orderBytes;
+  const clip = (v: bigint, keep = 14): string => {
+    const hex = formatScalar(v, b);
+    return hex.length > keep + 10 ? `${hex.slice(0, keep)}…${hex.slice(-6)}` : hex;
+  };
+  const cell = (v: bigint): string => {
+    const s = v.toString();
+    return s.length > 22 ? `${s.slice(0, 12)}…${s.slice(-6)}` : s;
+  };
+  // First constraint entry t₀ and the bound column, labelled.
+  const t0 = constraintRow[0] ?? 0n;
+  const boundCell = constraintRow[constraintRow.length - 1] ?? trace.bound;
+
+  return `
+    <details class="row-construction" open>
+      <summary>How one signature becomes one lattice row</summary>
+      <p class="muted rc-intro">Before the whole matrix appears, watch a single signature turn into a
+      single row. Signature #1 from the log gives real <code>r</code>, <code>s</code>, <code>h</code>:</p>
+      <div class="rc-signature" tabindex="0" role="region" aria-label="Signature 1 components">
+        <span><em>r</em> = <code>${clip(sig.r)}</code></span>
+        <span><em>s</em> = <code>${clip(sig.s)}</code></span>
+        <span><em>h</em> = <code>${clip(sig.h)}</code></span>
+      </div>
+      <p class="muted rc-step">Its ECDSA congruence <code>r·d − s·k + h ≡ 0 (mod n)</code> is rescaled by
+      <code>s⁻¹</code> and centered so the unknown nonce error is small. That single reduction step
+      produces one coefficient <code>t₀ = r·s⁻¹ (centered)</code> and the shared scaling bound
+      <code>B</code> — which become two entries of the row:</p>
+      <div class="rc-row" tabindex="0" role="region" aria-label="Lattice row built from signature 1">
+        <div class="rc-cell rc-labeled">
+          <span class="rc-tag">t₀ (from sig #1)</span>
+          <code>${cell(t0)}</code>
+        </div>
+        <span class="rc-ellipsis">… t₁ … t${before.length - 2} …</span>
+        <div class="rc-cell rc-labeled rc-bound">
+          <span class="rc-tag">bound B (scaling)</span>
+          <code>${cell(boundCell)}</code>
+        </div>
+      </div>
+      <div class="rc-modrow" tabindex="0" role="region" aria-label="Modulus rows of the lattice">
+        <span class="rc-tag">above this row sit N modulus rows</span>
+        <code>[ n, 0, 0, … 0 ]  [ 0, n, 0, … 0 ]  …</code>
+        <span class="rc-modnote">— they let each congruence wrap mod n without changing the solution.</span>
+      </div>
+      <p class="muted rc-outro">Stack one such constraint row per signature on top of the <code>n</code>-modulus
+      rows and you have the full starting basis below. Every giant integer in it came from a signature
+      exactly this way.</p>
+    </details>
+  `;
+}
+
+export function renderLatticeView(trace: AttackTrace, curve: CurveContext, signatures?: SignatureRecord[]): string {
   // basisAfter rows have the same width as basisBefore; the secret coordinate is
   // the second-to-last column (row[len-2] = ±d·bound).
   const afterWidth = trace.basisAfter?.[0]?.length ?? 0;
@@ -95,8 +161,10 @@ export function renderLatticeView(trace: AttackTrace, curve: CurveContext): stri
         </div>
       </div>
       <p class="muted lattice-intro">LLL rewrites the tall, skewed starting basis into shorter, more
-      orthogonal vectors. When the attack works, one of those short vectors carries the key — it is
-      <strong>outlined</strong> below, and the equation underneath reads it out.</p>
+      orthogonal vectors. When the attack works, one of those short vectors carries the key. First see
+      <em>where the basis comes from</em>, then watch it <em>get shorter</em>, then read the key out of it.</p>
+      ${renderRowConstruction(trace, signatures, curve)}
+      ${renderLatticeProjection(trace)}
       ${renderMatrix(trace.basisBefore, 'basis before LLL')}
       ${renderMatrix(trace.basisAfter, 'basis after LLL', { winningRowIndex: trace.winningRowIndex, secretColumnIndex })}
       ${renderKeyBridge(trace, curve)}

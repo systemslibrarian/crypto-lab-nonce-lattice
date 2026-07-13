@@ -1181,6 +1181,310 @@ h1 {
 .feasibility-region.region-marginal { color: var(--accent-strong); }
 .feasibility-region.region-infeasible { color: var(--danger); }
 
+/* ── Feasibility reality bridge (toy scale vs real curve) ────────── */
+.feasibility-reality {
+  margin: 0.75rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+.feasibility-reality strong { color: var(--text-primary); }
+
+/* ── 2-D lattice projection (Lattice View) ───────────────────────── */
+.lattice-projection {
+  margin: 1rem 0;
+}
+.lp-caption,
+.lp-note {
+  line-height: 1.6;
+  font-size: 0.85rem;
+}
+.lp-caption { margin: 0.2rem 0 0.6rem; }
+.lp-note { margin: 0.55rem 0 0; }
+.lp-legend {
+  font-weight: 700;
+  padding: 0 0.15rem;
+  border-radius: 3px;
+}
+.lp-legend.before { color: var(--text-muted); text-decoration: underline dashed; }
+.lp-legend.after { color: var(--accent); }
+.lp-legend.winner { color: var(--accent-strong); }
+
+.lp-stage {
+  max-width: 22rem;
+  margin: 0 auto;
+}
+.lp-svg {
+  width: 100%;
+  height: auto;
+  background: var(--surface-strong);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  display: block;
+}
+.lp-axis {
+  stroke: var(--border-color);
+  stroke-width: 1;
+}
+.lp-axis-label {
+  fill: var(--text-muted);
+  font-size: 8px;
+  font-family: "IBM Plex Sans", sans-serif;
+}
+.lp-vec {
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.lp-before-vec {
+  stroke: var(--text-muted);
+  stroke-dasharray: 3 3;
+  opacity: 0.85;
+}
+.lp-after-vec {
+  stroke: var(--accent);
+  opacity: 0.9;
+}
+.lp-vec.lp-winner {
+  stroke: var(--accent-strong);
+  stroke-width: 3;
+  opacity: 1;
+}
+.lp-guide {
+  stroke: var(--accent-strong);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  opacity: 0.7;
+}
+.lp-winner-dot {
+  fill: var(--accent-strong);
+  stroke: var(--surface-strong);
+  stroke-width: 1;
+}
+
+/* Cross-fade: on load, "before" fades out and "after" fades in so the eye watches the
+   long skewed arrows collapse into the short reduced ones. Static, accessible end state. */
+.lp-frame { transform-origin: center; }
+.lp-before { animation: lp-fade-out 2.4s ease forwards; }
+.lp-after { opacity: 0; animation: lp-fade-in 2.4s ease forwards; }
+@keyframes lp-fade-out {
+  0%, 30% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes lp-fade-in {
+  0%, 30% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-before { animation: none; opacity: 0.28; }
+  .lp-after { animation: none; opacity: 1; }
+}
+
+/* ── One signature → one lattice row (row construction) ───────────── */
+.row-construction {
+  margin: 0.6rem 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+.row-construction > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.row-construction p { line-height: 1.6; font-size: 0.85rem; }
+.rc-intro { margin-top: 0.6rem; }
+.rc-signature {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+  padding: 0.6rem 0.7rem;
+  margin: 0.3rem 0;
+  border-radius: 8px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border-color);
+  overflow-x: auto;
+  font-size: 0.8rem;
+}
+.rc-signature em { color: var(--accent); font-style: normal; font-weight: 700; }
+.rc-row {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  margin: 0.3rem 0;
+  border-radius: 8px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border-color);
+  overflow-x: auto;
+}
+.rc-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: rgba(125, 211, 252, 0.08);
+}
+:root[data-theme='light'] .rc-cell { background: rgba(15, 118, 110, 0.08); }
+.rc-cell.rc-bound {
+  border-color: var(--accent-strong);
+  background: rgba(245, 158, 11, 0.1);
+}
+:root[data-theme='light'] .rc-cell.rc-bound { background: rgba(194, 65, 12, 0.1); }
+.rc-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-family: "IBM Plex Sans", sans-serif;
+}
+.rc-cell.rc-bound .rc-tag { color: var(--accent-strong); }
+.rc-cell code { font-size: 0.78rem; }
+.rc-ellipsis {
+  align-self: center;
+  color: var(--text-muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+}
+.rc-modrow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.7rem;
+  margin: 0.3rem 0;
+  border-radius: 8px;
+  border: 1px dashed var(--border-color);
+  overflow-x: auto;
+  font-size: 0.78rem;
+}
+.rc-modrow code { color: var(--text-muted); }
+.rc-modnote { color: var(--text-muted); font-size: 0.76rem; }
+
+/* ── ECDSA on-ramp callout ───────────────────────────────────────── */
+.ecdsa-callout .callout-lead {
+  margin: 0.3rem 0 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.ecdsa-callout .callout-equation {
+  margin: 0.2rem 0 0.6rem;
+  text-align: center;
+}
+.ecdsa-callout .callout-equation code {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+.ecdsa-callout p.muted { line-height: 1.65; }
+.ecdsa-callout em { color: var(--accent-strong); font-style: normal; font-weight: 700; }
+
+/* ── Guided walkthrough step tabs ────────────────────────────────── */
+.guided-walkthrough {
+  padding: 1rem 1.1rem 0.4rem;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.guided-lead { margin: 0.3rem 0 0.8rem; line-height: 1.6; }
+.step-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding-bottom: 0.4rem;
+}
+.step-tab {
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-strong);
+  color: var(--text-muted);
+  font-family: "IBM Plex Sans", sans-serif;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.step-tab:hover { color: var(--text-primary); border-color: var(--accent); }
+.step-tab.active {
+  color: var(--surface-strong);
+  background: linear-gradient(120deg, var(--accent), var(--accent-strong));
+  border-color: var(--accent);
+}
+.step-tab.active:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 2px; }
+.step-tab-arrow {
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 0 0.1rem;
+}
+
+.step-panel {
+  grid-column: 1 / -1;
+}
+/* Hiding is driven by the [hidden] attribute (which the a11y suite strips before
+   scanning, so off-tab panels are still audited). The class is a state marker only. */
+.step-panel[hidden] { display: none; }
+.step-blurb {
+  margin: 0 0 0.6rem;
+  padding: 0.55rem 0.85rem;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: var(--surface-soft);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.step-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* ── History section (collapsed by default) ──────────────────────── */
+.history-section {
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--surface);
+  padding: 0.5rem 1.1rem;
+}
+.history-section > summary {
+  cursor: pointer;
+  padding: 0.6rem 0;
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+.history-eyebrow {
+  display: inline-block;
+  margin-right: 0.5rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-color);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.history-body {
+  display: grid;
+  gap: 1.25rem;
+  padding: 0.5rem 0 1rem;
+}
+
 /* ── Attack workflow / attack-vs-defense panel ───────────────────── */
 .attack-defense-panel {
   display: grid;

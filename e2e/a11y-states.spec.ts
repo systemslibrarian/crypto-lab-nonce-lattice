@@ -16,7 +16,10 @@ async function scan(page: Page): Promise<void> {
 }
 async function runPreset(page: Page, preset: string): Promise<void> {
   await page.locator(`[data-preset="${preset}"]`).click();
-  // wait for recovery panel to settle
+  // The guided walkthrough gates panels behind step tabs; the recovery banner lives on
+  // the final "Extract" step. Wait for the tabs to appear, open Extract, then let it settle.
+  await page.locator('[data-step-tab="extract"]').waitFor({ state: 'visible', timeout: 30000 });
+  await page.locator('[data-step-tab="extract"]').click();
   await page.locator('.recovery-banner').waitFor({ state: 'visible', timeout: 30000 });
   await page.waitForTimeout(500);
 }

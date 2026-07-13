@@ -4,7 +4,21 @@
 
 A browser-based educational demo of ECDSA nonce leakage and lattice-based key recovery. Shows how partial nonce leakage or reuse can be exploited using the Hidden Number Problem and LLL/Babai lattice reduction. For classroom and self-study use only.
 
-It is built for progressive disclosure: a newcomer gets the intuition up front (a live feasibility gauge that shows when leakage is enough, a byte-for-byte key-recovery grid, and — for the nonce-reuse case — a fully worked two-signature derivation with the real numbers), while the Lattice View surfaces the single conceptual leap for deeper readers by outlining the winning short vector and showing that its secret coordinate divided by the scaling bound *is* the private key (`secretCoordinate / B mod n = d`).
+It is built for progressive disclosure. A newcomer meets the one governing equation first, then follows a **guided four-step walkthrough** (Sign → Build HNP → Reduce → Extract) that gates the deep panels behind step tabs mirroring the attack pipeline, so the hard lattice matrices come only after the intuition. Along the way: a live feasibility gauge that shows when leakage is enough (with a caption reconciling the toy scale against the real `log₂(n)/2 ≈ 128`-bit HNP bound on secp256k1), a worked row-construction that turns one real signature into one lattice row, a **2-D geometric projection** where you watch the skewed starting basis snap into short, near-orthogonal reduced vectors with the key-carrying vector highlighted, a byte-for-byte key-recovery grid, and — for the nonce-reuse case — a fully worked two-signature derivation with the real numbers. The Lattice View still surfaces the single conceptual leap for deeper readers by outlining the winning short vector and showing that its secret coordinate divided by the scaling bound *is* the private key (`secretCoordinate / B mod n = d`). Historical case studies and the timeline sit behind a collapsed History section at the end.
+
+## Exhibits
+
+1. **The one equation** — the always-visible ECDSA congruence `s = k⁻¹(h + r·d) mod n` recast as `r·d − s·k + h ≡ 0 (mod n)`, the on-ramp the whole attack turns on.
+2. **Configuration + presets** — pick curve, leak mode (MSB / LSB / fixed-prefix / reused-nonce / RFC 6979), leak size, and signature count; one-click scenario presets.
+3. **Feasibility gauge** — plots your live config against the information floor and this demo's numerical boundary, with a caption bridging the on-screen toy axes to the real `log₂(n)/2` theoretical bound.
+4. **Guided walkthrough (Sign → Build HNP → Reduce → Extract)** — step tabs that reveal the deep panels in the pipeline's order.
+5. **Signature log** — the captured `r, s, h`, digests, and leaked-nonce metadata that feed the attack.
+6. **Row construction** — one real signature becoming one lattice row, with the modulus rows and the bound/scaling column labeled.
+7. **2-D lattice projection** — an animated slice showing the starting basis vectors reduce into short, near-orthogonal ones, with the key-carrying vector highlighted along the `= d·B` axis.
+8. **Lattice View + key bridge** — the before/after basis matrices and the equation `secretCoordinate / B mod n = d` reading the key out of the short vector.
+9. **Recovery panel** — byte-for-byte comparison of the recovered key against the signer's key, verified against `Q = dG`.
+10. **Nonce-reuse derivation** — the two-line PS3-style algebra (`k`, then `d`) with the real numbers, no lattice needed.
+11. **History & context** — real-world case studies (PS3, Android, Minerva, TPM-FAIL), the historical timeline, and related labs.
 
 **Warning:** This is an educational tool. It does not break real-world cryptosystems. See `docs/limitations.md` and `SECURITY.md`.
 
