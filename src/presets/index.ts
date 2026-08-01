@@ -1,4 +1,11 @@
-// Preset system for known-good demo configurations
+// Preset system for known-good demo configurations.
+//
+// Every entry marked `expectedResult: 'demo-key'` must actually recover the key when
+// fed to runAnalysis(). The lattice presets previously specified 8 signatures at 24
+// leaked bits; 8 x 24 = 192 bits of leakage is below the 256-bit information floor for
+// a 256-bit curve order, so none of them ever recovered anything -- "known-good" was a
+// claim nothing checked. They now use the app's default of 12 signatures (12 x 24 = 288
+// bits, comfortably over the floor), which recovers on every run.
 export interface Preset {
   name: string;
   curve: string;

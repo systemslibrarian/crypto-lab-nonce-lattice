@@ -1,4 +1,4 @@
-import { Preset } from './index';
+import type { Preset } from './index';
 
 export const rfc6979_defender: Preset = {
   name: 'rfc6979-defender',

@@ -123,13 +123,17 @@ export function renderFeasibility(config: AppConfigView, curve: CurveContext): s
       <p class="feasibility-region region-${region}">${regionLabel}</p>
       ${note}
       <p class="feasibility-reality">
-        <strong>Reading the axes honestly.</strong> This gauge uses small leak sizes (up to ${MAX_BITS} bits)
-        and counts (up to ${MAX_SIGS} signatures) on reduced, browser-fast parameters. On a real
-        ${curve.bits}-bit curve like secp256k1, the classic Nguyen–Shparlinski / HNP result says you need
-        only about <strong>${glossTerm('√(log₂ n)', 'The square root of the bit-length of the curve order — the leakage per signature that Boneh–Venkatesan and Nguyen–Shparlinski prove is enough for polynomial-time recovery. Real implementations have fallen to far fewer bits than this.')} ≈ ${Math.round(Math.sqrt(curve.bits))} bits</strong>
-        of nonce leakage per signature to recover <code>d</code> from a polynomial number of signatures.
-        The on-screen boundary is the analogue of that bound at this demo's scale — don't read the
-        specific numbers here as thresholds for real secp256k1.
+        <strong>Reading the axes honestly.</strong> The curve is <em>not</em> scaled down: this really is
+        ${curve.label}, a full ${curve.bits}-bit order, and the signatures really verify. What is limited is
+        the attacker's budget — this gauge only goes up to ${MAX_SIGS} signatures, because the
+        floating-point LLL below runs in your browser rather than on a cluster. Because of that small
+        sample budget the demo needs far <em>more</em> leakage per signature than theory demands: the
+        classic Boneh–Venkatesan / Nguyen–Shparlinski HNP result says about
+        <strong>${glossTerm('√(log₂ n)', 'The square root of the bit-length of the curve order — the leakage per signature that Boneh–Venkatesan (CRYPTO 1996) and Nguyen–Shparlinski (J. Cryptology 2002) prove is enough for polynomial-time recovery, given a number of signatures linear in log n. Real implementations have fallen to far fewer bits than this.')} ≈ ${Math.round(Math.sqrt(curve.bits))} bits</strong>
+        per signature suffices, given a number of signatures linear in log n — hundreds, not dozens.
+        So the boundary drawn here is this demo's boundary at this sample size, not a threshold for
+        ${curve.label} in general. The reason your keys are safe is not that these are small curves;
+        it is that a correct signer never leaks the bits this page hands the attacker for free.
       </p>
     </section>
   `;

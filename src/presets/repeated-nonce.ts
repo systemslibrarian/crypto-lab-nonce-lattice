@@ -1,4 +1,4 @@
-import { Preset } from './index';
+import type { Preset } from './index';
 
 export const repeated_nonce: Preset = {
   name: 'repeated-nonce',

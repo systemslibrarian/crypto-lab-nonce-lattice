@@ -1,10 +1,10 @@
-import { Preset } from './index';
+import type { Preset } from './index';
 
 export const secp256k1_lsb_24bits: Preset = {
   name: 'secp256k1-lsb-24bits',
   curve: 'secp256k1',
   mode: 'lsb',
-  signatureCount: 8,
+  signatureCount: 12,
   leakedBits: 24,
   seed: 'fixture-seed-2',
   expectedResult: 'demo-key',

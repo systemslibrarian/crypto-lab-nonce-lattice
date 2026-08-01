@@ -1,10 +1,10 @@
-import { Preset } from './index';
+import type { Preset } from './index';
 
 export const p256_msb_24bits: Preset = {
   name: 'p256-msb-24bits',
   curve: 'p256',
   mode: 'msb',
-  signatureCount: 8,
+  signatureCount: 12,
   leakedBits: 24,
   seed: 'fixture-seed-4',
   expectedResult: 'demo-key',

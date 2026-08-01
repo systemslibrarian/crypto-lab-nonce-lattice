@@ -4,13 +4,13 @@
 
 A browser-based educational demo of ECDSA nonce leakage and lattice-based key recovery. Shows how partial nonce leakage or reuse can be exploited using the Hidden Number Problem and LLL/Babai lattice reduction. For classroom and self-study use only.
 
-It is built for progressive disclosure. A newcomer meets the one governing equation first, then follows a **guided four-step walkthrough** (Sign → Build HNP → Reduce → Extract) that gates the deep panels behind step tabs mirroring the attack pipeline, so the hard lattice matrices come only after the intuition. Along the way: a live feasibility gauge that shows when leakage is enough (with a caption reconciling the toy scale against the real `√(log₂ n) ≈ 16`-bit HNP bound on secp256k1), a worked row-construction that turns one real signature into one lattice row, a **2-D geometric projection** where you watch the skewed starting basis snap into short, near-orthogonal reduced vectors with the key-carrying vector highlighted, a byte-for-byte key-recovery grid, and — for the nonce-reuse case — a fully worked two-signature derivation with the real numbers. The Lattice View still surfaces the single conceptual leap for deeper readers by outlining the winning short vector and showing that its secret coordinate divided by the scaling bound *is* the private key (`secretCoordinate / B mod n = d`). Historical case studies and the timeline sit behind a collapsed History section at the end.
+It is built for progressive disclosure. A newcomer meets the one governing equation first, then follows a **guided four-step walkthrough** (Sign → Build HNP → Reduce → Extract) that gates the deep panels behind step tabs mirroring the attack pipeline, so the hard lattice matrices come only after the intuition. Along the way: a live feasibility gauge that shows when leakage is enough (with a caption reconciling this demo's small signature budget against the real `√(log₂ n) ≈ 16`-bit HNP bound on secp256k1), a worked row-construction that turns one real signature into one lattice row, a **2-D geometric projection** where you watch the skewed starting basis snap into short, near-orthogonal reduced vectors with the key-carrying vector highlighted, a byte-for-byte key-recovery grid, and — for the nonce-reuse case — a fully worked two-signature derivation with the real numbers. The Lattice View still surfaces the single conceptual leap for deeper readers by outlining the winning short vector and showing that its secret coordinate divided by the scaling bound *is* the private key (`secretCoordinate / B mod n = d`). Historical case studies and the timeline sit behind a collapsed History section at the end.
 
 ## Exhibits
 
 1. **The one equation** — the always-visible ECDSA congruence `s = k⁻¹(h + r·d) mod n` recast as `r·d − s·k + h ≡ 0 (mod n)`, the on-ramp the whole attack turns on.
 2. **Configuration + presets** — pick curve, leak mode (MSB / LSB / fixed-prefix / reused-nonce / RFC 6979), leak size, and signature count; one-click scenario presets.
-3. **Feasibility gauge** — plots your live config against the information floor and this demo's numerical boundary, with a caption bridging the on-screen toy axes to the real `√(log₂ n)` theoretical bound.
+3. **Feasibility gauge** — plots your live config against the information floor and this demo's numerical boundary, with a caption bridging the on-screen axes — capped at 32 signatures because the reduction runs in your browser — to the real `√(log₂ n)` theoretical bound.
 4. **Guided walkthrough (Sign → Build HNP → Reduce → Extract)** — step tabs that reveal the deep panels in the pipeline's order.
 5. **Signature log** — the captured `r, s, h`, digests, and leaked-nonce metadata that feed the attack.
 6. **Row construction** — one real signature becoming one lattice row, with the modulus rows and the bound/scaling column labeled.
@@ -27,7 +27,7 @@ It is built for progressive disclosure. A newcomer meets the one governing equat
 - To understand ECDSA nonce leakage attacks.
 - To demonstrate lattice-based recovery in a safe, reproducible setting.
 - For teaching, labs, and cryptography exercises.
-- Do NOT use it against real keys or systems — it is a teaching demo on toy parameters and does not break real-world cryptosystems.
+- Do NOT use it against real keys or systems. Note what makes it safe: the curves here are the real standardized ones (secp256k1, P-256) at full size, and the signatures really verify. What is artificial is that the signer deliberately hands the attacker known nonce bits. A correctly implemented signer leaks none of them, and this demo has no way to obtain them from one that does not.
 
 ## Live Demo
 
@@ -41,7 +41,7 @@ The demo lets you generate ECDSA signatures with deliberately leaked or biased n
 - **Biased or partially known nonces:** even a few leaked or biased high/low bits per signature, gathered across enough signatures, let an attacker recover the key by solving the Hidden Number Problem with LLL/BKZ lattice reduction.
 - **Weak randomness:** a low-entropy or broken PRNG produces predictable nonces and collapses ECDSA security; RFC 6979 deterministic nonces remove the RNG from the trust path.
 - **Side-channel leakage of nonce bits:** cache or timing leaks from the scalar multiplication can expose exactly the partial-nonce information this lattice attack consumes.
-- **Insufficient samples:** the attack only succeeds above a threshold of signatures relative to bits leaked, and this demo uses toy curves — it does not threaten standardized secp256k1 keys.
+- **Insufficient samples:** the attack only succeeds above a threshold of signatures relative to bits leaked — `bits x signatures` must clear the 256-bit curve order or the lattice is under-determined. Because this demo caps the sample count at 32 (browser-speed LLL), it needs far more leakage per signature than the `√(log₂ n) ≈ 16` bits that Boneh–Venkatesan / Nguyen–Shparlinski prove sufficient given a number of signatures linear in `log n`. Real attacks like Minerva got by on a couple of bits per signature and many thousands of signatures.
 
 ## Real-World Usage
 
