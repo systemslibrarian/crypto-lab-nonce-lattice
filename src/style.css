@@ -260,6 +260,16 @@ table, .table-shell, .matrix-shell {
   --success: #4ade80;
   --danger: #f87171;
   --border-color: rgba(157, 182, 212, 0.22);
+  /* Control boundaries only (WCAG 2.1 SC 1.4.11). `select`/`input` are filled
+     with --surface-strong, which composites to within 1.3:1 of every card
+     surface they sit in, so the border is the only thing delineating the
+     control. --border-color composites to about #333c4a there — 1.31:1 at best,
+     1.28:1 at worst. #667284 is that same blue-grey lifted until it clears 3:1
+     on every surface a control sits on: 3.84:1 on --page-bg and composited
+     --surface-strong, 3.58:1 on composited --surface (#151a23), 3.31:1 on
+     composited --surface-soft (#1b212c, the worst case). --border-color is left
+     unchanged for decorative rules — card outlines, dividers, table rules. */
+  --border-strong: #667284;
   --shadow-color: rgba(3, 9, 18, 0.38);
   --hover-surface: rgba(39, 49, 65, 0.92);
   --hero-bg: radial-gradient(circle at top left, rgba(125, 211, 252, 0.22), transparent 36%), radial-gradient(circle at top right, rgba(245, 158, 11, 0.22), transparent 28%), linear-gradient(180deg, rgba(15, 18, 24, 0.98), rgba(11, 15, 22, 1));
@@ -279,6 +289,11 @@ table, .table-shell, .matrix-shell {
   --success: #15803d;
   --danger: #b91c1c;
   --border-color: rgba(105, 120, 137, 0.22);
+  /* Light-theme control boundary (WCAG 2.1 SC 1.4.11) — same reasoning as dark.
+     #697889 is --border-color's own slate at full opacity: 4.48:1 on composited
+     --surface-strong, 4.34:1 on composited --surface, 3.94:1 on --page-bg,
+     3.82:1 on composited --surface-soft (#f4ebda, the worst case). */
+  --border-strong: #697889;
   --shadow-color: rgba(43, 52, 66, 0.16);
   --hover-surface: rgba(241, 234, 223, 0.98);
   --hero-bg: radial-gradient(circle at top left, rgba(15, 118, 110, 0.15), transparent 35%), radial-gradient(circle at top right, rgba(194, 65, 12, 0.15), transparent 26%), linear-gradient(180deg, rgba(251, 247, 240, 0.98), rgba(241, 233, 219, 1));
@@ -518,7 +533,8 @@ input:hover,
 select,
 input {
   width: 100%;
-  border: 1px solid var(--border-color);
+  /* Load-bearing control boundary — see --border-strong (WCAG 2.1 SC 1.4.11). */
+  border: 1px solid var(--border-strong);
   border-radius: 14px;
   background: var(--surface-strong);
   color: var(--text-primary);
