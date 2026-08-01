@@ -80,7 +80,16 @@
   /* cl-a11y-touch: WCAG 2.5.5 target size on touch pointers only, so the
      bar keeps its density on desktop where a mouse is precise. */
   @media (pointer: coarse){
-    .cl-btn,.cl-icon{min-height:44px;min-width:44px}
+    /* Height is free -- it costs no horizontal room, so every touch target
+       gets the full 44px vertically. */
+    .cl-btn,.cl-icon{min-height:44px}
+  }
+  /* Width only where the bar can afford it. Below ~380px, three 44px-wide
+     buttons plus the brand overflow the viewport, and forcing horizontal
+     scroll would trade a 2.5.5 (AAA) gain for a 1.4.10 reflow failure.
+     The buttons stay ~31px wide there, comfortably over the 24px 2.5.8 (AA) floor. */
+  @media (pointer: coarse) and (min-width: 380px){
+    .cl-btn,.cl-icon{min-width:44px}
   }
 </style>
 <a class="cl-skip-link" href="#app">Skip to content</a>
