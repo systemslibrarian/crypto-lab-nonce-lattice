@@ -262,19 +262,19 @@ function renderCaseStudies(): string {
       <div class="details-stack">
         <details open>
           <summary>PS3 (2010) — Sony firmware nonce reuse</summary>
-          <p>Sony signed every PlayStation 3 firmware update with the same ECDSA nonce <code>k</code>. Because <code>k</code> is identical across signatures, the <code>r</code> values match, and two equations in two unknowns collapse immediately: <code>k = (h₁ − h₂)(s₁ − s₂)⁻¹ mod n</code>, then <code>d = (s₁k − h₁)r⁻¹ mod n</code>. The private key that protects the entire console signing chain fell to arithmetic a first-year student could follow. George Hotz published the recovery in January 2010, the same week he demoed it on stage at the Chaos Communication Congress.</p>
+          <p>Sony signed every PlayStation 3 firmware update with the same ECDSA nonce <code>k</code>. Because <code>k</code> is identical across signatures, the <code>r</code> values match, and two equations in two unknowns collapse immediately: <code>k = (h₁ − h₂)(s₁ − s₂)⁻¹ mod n</code>, then <code>d = (s₁k − h₁)r⁻¹ mod n</code>. The private key that protects the entire console signing chain fell to arithmetic a first-year student could follow. fail0verflow (bushing, marcan, segher, sven) demonstrated the recovery on stage at 27C3, the Chaos Communication Congress, on 29 December 2010; George Hotz published the derived root signing key days later, in early January 2011.</p>
         </details>
         <details>
           <summary>Android Bitcoin wallet bug (2013) — broken SecureRandom</summary>
           <p>In August 2013 a flaw in Android's <code>SecureRandom</code> PRNG caused the JVM entropy pool to be seeded with the same value across process restarts on certain devices. Bitcoin wallets using ECDSA over secp256k1 produced signatures where <code>k</code> repeated across different transactions — sometimes across different users on the same ROM build. Matching <code>r</code> values in the blockchain were detectable by anyone scanning for them, and the private keys followed immediately. Researchers scanned the public ledger, found the collisions, and the Bitcoin Security team issued an emergency patch within days. Wallet funds were drained in the window before users updated.</p>
         </details>
         <details>
-          <summary>Bleichenbacher / Howgrave-Graham &amp; Smart (1998–2002) — the lattice framing</summary>
-          <p>Daniel Bleichenbacher first observed in 1998 that even a small number of known nonce bits reduces ECDSA key recovery to a shortest-vector problem. Howgrave-Graham and Smart formalized this in 2002 as the <em>Hidden Number Problem</em>: each biased signature contributes one linear congruence over ℤ/nℤ, and stacking enough of them builds a lattice whose shortest vector encodes the secret key. They proved that leaking as few as <code>log₂(n)/2</code> bits per nonce — about 128 bits on a 256-bit curve — is sufficient for recovery with a polynomial number of signatures. This is the direct theoretical basis for the attack demonstrated in this lab.</p>
+          <summary>Boneh–Venkatesan / Howgrave-Graham &amp; Smart / Nguyen–Shparlinski (1996–2003) — the lattice framing</summary>
+          <p>Boneh and Venkatesan introduced the <em>Hidden Number Problem</em> in 1996 and showed it is solvable by lattice reduction from roughly <code>√(log₂ n)</code> known bits per sample. Howgrave-Graham and Smart (2001) applied that framing to DSA/ECDSA nonce leakage: each biased signature contributes one linear congruence over ℤ/nℤ, and stacking enough of them builds a lattice whose shortest vector encodes the secret key. Nguyen and Shparlinski then proved it rigorously — about <code>√(log₂ n)</code> known nonce bits per signature (≈ 16 bits on a 256-bit curve), across a number of signatures linear in <code>log₂ n</code>, suffices for polynomial-time key recovery; in practice implementations have fallen to far fewer bits than that. This is the direct theoretical basis for the attack demonstrated in this lab.</p>
         </details>
         <details>
           <summary>Minerva (2019) — smart-card timing leak</summary>
-          <p>Researchers at Masaryk University discovered that several smart-card and HSM implementations of ECDSA — including chips from Infineon, NXP, and Gemalto — used scalar multiplication routines whose execution time depended on the bit-length of the nonce <code>k</code>. Measuring response times over a local USB or contactless reader was enough to recover the top few bits of <code>k</code> for each signature. With roughly 2,000 to 4,000 timed queries, the Hidden Number Problem lattice had enough constraints to recover the long-term private key. The same chip appeared in YubiKey 4 and JavaCard products certified for government use.</p>
+          <p>Researchers at Masaryk University discovered that several ECDSA implementations — the Athena IDProtect smart card (FIPS 140-2 certified) plus the libgcrypt, MatrixSSL, wolfSSL, Crypto++ and SunEC/OpenJDK libraries — used scalar multiplication routines whose execution time depended on the bit-length of the nonce <code>k</code>. Measuring response times over a local USB or contactless reader was enough to recover the top few bits of <code>k</code> for each signature. Roughly 2,100 timed signatures from the card gave the Hidden Number Problem lattice enough constraints to recover the long-term secp256r1 private key. Cards from Infineon, NXP JCOP and G&amp;D, and the YubiKey HSM 2, were tested and found not to leak.</p>
         </details>
         <details>
           <summary>TPM-FAIL (2019) — Intel fTPM and STMicro leaking nonce bits</summary>
@@ -287,8 +287,8 @@ function renderCaseStudies(): string {
 
 function renderTimeline(): string {
   const entries = [
-    ['1996', 'Bleichenbacher first sketches the attack direction.'],
-    ['2002', 'Howgrave-Graham and Smart formalize the lattice angle.'],
+    ['1996', 'Boneh and Venkatesan introduce the Hidden Number Problem.'],
+    ['2001', 'Howgrave-Graham and Smart formalize the lattice angle.'],
     ['2003', 'Nguyen-Shparlinski publish the reduction used here.'],
     ['2010', 'Sony PS3 reveals catastrophic nonce reuse.'],
     ['2013', 'Android SecureRandom failures drain Bitcoin wallets.'],
