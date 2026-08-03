@@ -1617,3 +1617,102 @@ h1 {
 .cl-hero-why-label{display:block;font-size:.68rem;font-weight:700;letter-spacing:.14em;color:var(--accent);}
 .cl-hero-why-text{margin:.35rem 0 0;font-size:.95rem;line-height:1.5;color:var(--text-primary);}
 @media (max-width:640px){.cl-hero{flex-direction:column;}.cl-hero-why{flex-basis:auto;width:100%;}.cl-hero-main{flex-basis:auto;min-width:0;}}
+
+/* ── Measured feasibility boundary (real sweeps over the drawn model) ───── */
+.sweep-block {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border-color);
+}
+.sweep-lead {
+  margin: 0 0 0.7rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.sweep-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.secondary-button {
+  border-radius: 999px;
+  padding: 0.6rem 1rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--surface-strong);
+  border: 1px solid var(--border-strong);
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+.secondary-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: var(--hover-surface);
+}
+.secondary-button:disabled {
+  cursor: progress;
+  opacity: 0.75;
+}
+.secondary-button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.sweep-table {
+  width: 100%;
+  margin-top: 0.85rem;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.sweep-table th,
+.sweep-table td {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.sweep-table th { color: var(--text-muted); font-weight: 700; }
+.sweep-row.hit td:first-child { color: var(--success); font-weight: 700; }
+.sweep-row.miss td:first-child { color: var(--danger); font-weight: 700; }
+.sweep-row.ramp td:first-child { color: var(--accent-strong); font-weight: 700; }
+.sweep-flag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 0 0.4rem;
+  white-space: nowrap;
+}
+.sweep-verdict {
+  margin: 0.7rem 0 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.sweep-verdict.running { border-left-color: var(--accent-strong); }
+.sweep-refusal,
+.sweep-error {
+  margin: 0.7rem 0 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--danger);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.feasibility-svg .measured-curve {
+  stroke: var(--success);
+  stroke-width: 1.8;
+  stroke-dasharray: 1 3;
+  stroke-linecap: round;
+}
+.feasibility-svg .measured-dot {
+  fill: var(--success);
+  stroke: var(--text-primary);
+  stroke-width: 1;
+}

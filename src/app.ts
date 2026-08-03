@@ -6,7 +6,15 @@ import { renderAttackVsDefensePanel } from './ui/attack-vs-defense-panel';
 import { renderBasisView } from './ui/basis-view';
 import { renderConfigPanel } from './ui/config-panel';
 import { getDiagnostic } from './ui/diagnostics';
-import { renderFeasibility } from './ui/feasibility';
+import { renderFeasibility, type MeasuredColumn, type SweepView } from './ui/feasibility';
+import {
+  TRIALS_PER_LEVEL,
+  planLadder,
+  summarizeSweep,
+  type ProbeResult,
+  type SweepProgress,
+  type SweepRequest,
+} from './boundary';
 import { renderLatticeView } from './ui/lattice-view';
 import { renderRecoveryPanel } from './ui/recovery-panel';
 import { renderSignatureLog } from './ui/signature-log';
@@ -85,6 +93,9 @@ interface AppState {
   pipelineStage: number;
   /** Which guided-walkthrough step tab is showing (sign | build | reduce | extract). */
   activeStep: string;
+  /** Measured-boundary sweep: the ladder being run, its real results so far, and
+   *  every column measured earlier in this session. */
+  sweep: SweepView;
 }
 
 function loadSavedConfig(): AppConfigView {
@@ -624,7 +635,7 @@ function renderApp(state: AppState): string {
       </div>
       <main class="dashboard-grid" id="main-content" tabindex="-1">
         ${renderConfigPanel(config)}
-        <div id="feasibility-slot" class="span-two">${renderFeasibility(config, curveMap[config.curve] ?? secp256k1Curve)}</div>
+        <div id="feasibility-slot" class="span-two">${renderFeasibility(config, curveMap[config.curve] ?? secp256k1Curve, state.sweep)}</div>
         ${renderEcdsaCallout()}
         ${analysis ? `<div class="span-two guided-walkthrough">
           <div class="panel-heading guided-heading">
@@ -667,12 +678,18 @@ export function mountApp(rootOrNull: HTMLDivElement | null, onRender?: () => voi
     elapsedMs: 0,
     pipelineStage: 0,
     activeStep: 'sign',
+    sweep: { plan: null, probes: [], running: false, error: null, columns: [] },
   };
   let activeRequestId = 0;
   let analysisWorker = createAnalysisWorker();
   let elapsedInterval: ReturnType<typeof setInterval> | null = null;
   let elapsedStart = 0;
   let pipelineInterval: ReturnType<typeof setInterval> | null = null;
+  let sweepWorker: Worker | null = null;
+  let sweepId = 0;
+  /** Bumped on every sweep-state change so `paintFeasibility` knows to redraw. */
+  let sweepRevision = 0;
+  let lastPaintKey = '';
 
   function createAnalysisWorker(): Worker {
     const worker = new Worker(new URL('./analysis-worker.ts', import.meta.url), { type: 'module' });
@@ -791,8 +808,123 @@ export function mountApp(rootOrNull: HTMLDivElement | null, onRender?: () => voi
     analysisWorker.postMessage(request);
   };
 
+  /** Identity of a painted gauge: the config it was drawn for plus a counter that
+   *  ticks whenever the sweep state changes. Repainting is skipped when neither
+   *  moved — otherwise a `change` event fired by a control losing focus replaces
+   *  the panel between a button's mousedown and mouseup, and the click that was
+   *  in flight is silently lost. */
+  function paintKey(config: AppConfigView): string {
+    return `${JSON.stringify(config)}|${sweepRevision}`;
+  }
+
+  /** Re-render just the feasibility gauge (model curves, measured overlay, sweep
+   *  table) for a config, and re-attach the sweep button that render replaced. */
+  function paintFeasibility(config: AppConfigView): void {
+    const slot = root.querySelector<HTMLDivElement>('#feasibility-slot');
+    if (!slot) return;
+    const key = paintKey(config);
+    if (key === lastPaintKey) return;
+    slot.innerHTML = renderFeasibility(config, curveMap[config.curve] ?? secp256k1Curve, state.sweep);
+    lastPaintKey = key;
+    bindSweepButton();
+  }
+
+  function currentConfig(): AppConfigView {
+    const form = root.querySelector<HTMLFormElement>('#attack-config-form');
+    return form ? readConfig(form) : state.config;
+  }
+
+  function bindSweepButton(): void {
+    const button = root.querySelector<HTMLButtonElement>('[data-measure-boundary]');
+    button?.addEventListener('click', () => {
+      startSweep(currentConfig());
+    });
+  }
+
+  /**
+   * Measure the feasibility boundary instead of drawing it: run the full attack
+   * for real, several times, at each rung of a ladder straddling the information
+   * floor. Results stream back rung by rung.
+   */
+  function startSweep(config: AppConfigView): void {
+    if (state.sweep.running) return;
+    const normalized = normalizeConfig(config);
+    const curve = curveMap[normalized.curve] ?? secp256k1Curve;
+    const plan = planLadder(normalized, curve);
+
+    state.sweep = { ...state.sweep, plan, probes: [], error: null, running: false };
+    sweepRevision += 1;
+    if (plan.refusal) {
+      // Nothing to run — the panel states the reason rather than inventing a curve.
+      paintFeasibility(normalized);
+      return;
+    }
+
+    state.sweep.running = true;
+    sweepRevision += 1;
+    paintFeasibility(normalized);
+
+    sweepId += 1;
+    const id = sweepId;
+    sweepWorker?.terminate();
+    sweepWorker = new Worker(new URL('./boundary-worker.ts', import.meta.url), { type: 'module' });
+    sweepWorker.addEventListener('message', (event: MessageEvent<SweepProgress>) => {
+      if (event.data.sweepId !== id) return;
+      sweepRevision += 1;
+      if (event.data.probe) {
+        state.sweep.probes = [...state.sweep.probes, event.data.probe as ProbeResult];
+      }
+      if (event.data.error) {
+        state.sweep.error = event.data.error;
+      }
+      if (event.data.done) {
+        state.sweep.running = false;
+        const finishedPlan = state.sweep.plan;
+        if (finishedPlan && !event.data.error) {
+          const summary = summarizeSweep(finishedPlan, state.sweep.probes);
+          if (summary.measuredBits !== null) {
+            const column: MeasuredColumn = {
+              signatureCount: finishedPlan.signatureCount,
+              curveId: finishedPlan.curveId,
+              leakMode: finishedPlan.leakMode,
+              measuredBits: summary.measuredBits,
+              measuredRate: summary.measuredRate ?? 0,
+            };
+            state.sweep.columns = [
+              ...state.sweep.columns.filter(
+                (c) =>
+                  !(
+                    c.signatureCount === column.signatureCount &&
+                    c.curveId === column.curveId &&
+                    c.leakMode === column.leakMode
+                  ),
+              ),
+              column,
+            ];
+          }
+        }
+      }
+      paintFeasibility(normalized);
+    });
+    sweepWorker.addEventListener('error', () => {
+      state.sweep.running = false;
+      state.sweep.error = 'The boundary sweep worker failed.';
+      sweepRevision += 1;
+      paintFeasibility(normalized);
+    });
+
+    const request: SweepRequest = {
+      sweepId: id,
+      config: normalized,
+      levels: plan.levels,
+      trials: TRIALS_PER_LEVEL,
+    };
+    sweepWorker.postMessage(request);
+  }
+
   const rerender = () => {
     root.innerHTML = renderApp(state);
+    lastPaintKey = paintKey(state.config);
 
     const presetButtons = root.querySelectorAll<HTMLButtonElement>('[data-preset]');
     presetButtons.forEach((button) => {
@@ -815,15 +947,12 @@ export function mountApp(rootOrNull: HTMLDivElement | null, onRender?: () => voi
     // or changes leak mode/curve, without re-running the (expensive) lattice attack.
     if (form) {
       const updateFeasibility = () => {
-        const liveConfig = readConfig(form);
-        const slot = root.querySelector<HTMLDivElement>('#feasibility-slot');
-        if (slot) {
-          slot.innerHTML = renderFeasibility(liveConfig, curveMap[liveConfig.curve] ?? secp256k1Curve);
-        }
+        paintFeasibility(readConfig(form));
       };
       form.addEventListener('input', updateFeasibility);
       form.addEventListener('change', updateFeasibility);
     }
+    bindSweepButton();
 
     // Guided walkthrough step tabs: switch which step panel is visible without a full
     // re-render (so we don't re-run the attack or restart the LLL animation unnecessarily).
