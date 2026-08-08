@@ -206,7 +206,7 @@ function renderPipeline(status: PipelineStatus, stage: number): string {
     })
     .join('');
 
-  return `<div class="attack-pipeline" aria-label="Attack pipeline">${stepsHtml}</div>`;
+  return `<div class="attack-pipeline" role="group" aria-label="Attack pipeline">${stepsHtml}</div>`;
 }
 
 function renderHowItWorks(config: AppConfigView, analysis: AnalysisBundle | null): string {
@@ -637,7 +637,12 @@ function renderApp(state: AppState): string {
         ${renderConfigPanel(config)}
         <div id="feasibility-slot" class="span-two">${renderFeasibility(config, curveMap[config.curve] ?? secp256k1Curve, state.sweep)}</div>
         ${renderEcdsaCallout()}
-        ${analysis ? `<div class="span-two guided-walkthrough">
+        ${/* Gated on `!error` as well as `analysis`: the step PANELS are replaced by
+             the failure section in the error branch, so rendering the tabs there
+             leaves every `aria-controls` pointing at an id that does not exist —
+             a critical `aria-valid-attr-value` failure. The loading branch
+             replaces them too, so it is excluded on the same grounds. */ ''}
+        ${analysis && !error && !loading ? `<div class="span-two guided-walkthrough">
           <div class="panel-heading guided-heading">
             <div>
               <p class="eyebrow">Guided walkthrough</p>

@@ -44,8 +44,8 @@ function renderKeyCompare(actual: string, recovered: string | null): string {
         <span>signer's actual key</span>
         <span>recovered from the attack</span>
       </div>
-      <div class="key-compare-row" aria-label="Actual key bytes">${aHtml}</div>
-      <div class="key-compare-row" aria-label="Recovered key bytes">${rHtml}</div>
+      <div class="key-compare-row" role="group" aria-label="Actual key bytes">${aHtml}</div>
+      <div class="key-compare-row" role="group" aria-label="Recovered key bytes">${rHtml}</div>
       <p class="key-compare-caption ${allMatch ? 'success' : 'partial'}">${caption}</p>
     </div>`;
 }

@@ -36,10 +36,14 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   outline-offset: 2px;
 }
 
-/* Improve color contrast for text */
+/* Headings take the theme's primary ink. This rule previously hardcoded
+   `color: #fff !important` under a comment claiming it improved contrast — it
+   does in dark theme and inverts the problem in light, where every heading
+   rendered white on a near-white page at 1.04:1, with `!important` preventing
+   any override. The text-shadow went with it: it was there to fake legibility
+   for white ink on an unknown backdrop, which is no longer the situation. */
 .cl-title, h1, h2, h3, h4, h5, h6 {
-  color: #fff !important;
-  text-shadow: 0 1px 2px #0008;
+  color: var(--text-primary);
 }
 
 /* Responsive font sizes for mobile */
@@ -283,9 +287,17 @@ table, .table-shell, .matrix-shell {
   --surface-soft: rgba(244, 234, 216, 0.85);
   --text-primary: #1f2937;
   --text-muted: #5f6b7b;
-  --accent: #0f766e;
-  --accent-strong: #c2410c;
-  --success: #15803d;
+  /* Darkened from #0f766e: measured 4.28:1 as the hero card's label ink,
+     which sits on a warmer, darker tint than the plain panel it was tuned
+     against. */
+  --accent: #0c5f59;
+  /* Darkened from #c2410c: measured 4.31:1 as the workflow diagnostic's ink
+     on its own warm tint — the same-hue trap, where the surface is tinted
+     toward the colour the text already is. */
+  --accent-strong: #9a3009;
+  /* Darkened from #15803d: the done/pass surfaces tint their own background
+     10% toward the same green, so text and backdrop converged at 4.01:1. */
+  --success: #0f6330;
   --danger: #b91c1c;
   --border-color: rgba(105, 120, 137, 0.22);
   /* Light-theme control boundary (WCAG 2.1 SC 1.4.11) — same reasoning as dark.
@@ -1456,7 +1468,7 @@ h1 {
   border-left: 3px solid var(--accent);
   border-radius: 0 8px 8px 0;
   background: var(--surface-soft);
-  color: var(--text-primary);
+  color: var(--text-muted);
   font-size: 0.88rem;
   line-height: 1.5;
 }
@@ -1714,4 +1726,20 @@ h1 {
   fill: var(--success);
   stroke: var(--text-primary);
   stroke-width: 1;
+}
+
+/* Off-screen store for gloss definitions, referenced by aria-describedby (see
+   glossTerm in src/ui/lattice-view.ts: an aria-label on a <span> is discarded,
+   because a span maps to the generic role). Clipped rather than `display: none`
+   so it stays in the accessibility tree. */
+.gloss-def {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

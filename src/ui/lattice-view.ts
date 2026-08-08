@@ -32,7 +32,7 @@ function renderMatrix(matrix: bigint[][] | undefined, label: string, options: Ma
       const badge = isWinner
         ? '<span class="winning-badge" aria-hidden="true">key row ↓</span>'
         : '';
-      return `<div class="${classes.join(' ')}"${isWinner ? ' aria-label="Winning short vector: this row carries the private key"' : ''}>${badge}${cells}</div>`;
+      return `<div class="${classes.join(' ')}"${isWinner ? ' role="img" aria-label="Winning short vector: this row carries the private key"' : ''}>${badge}${cells}</div>`;
     })
     .join('');
 
@@ -174,5 +174,14 @@ export function renderLatticeView(trace: AttackTrace, curve: CurveContext, signa
 
 /** Inline glossary: a term with a native-title tooltip and a visible dotted underline. */
 export function glossTerm(term: string, definition: string): string {
-  return `<span class="gloss" tabindex="0" title="${definition.replace(/"/g, '&quot;')}" aria-label="${term}: ${definition.replace(/"/g, '&quot;')}">${term}</span>`;
+  // aria-describedby, not aria-label: a <span> is role=generic and ARIA
+  // prohibits a name there, so browsers discard it — the definition reached no
+  // screen reader at all. A description is a global attribute, is permitted on
+  // generic, and is announced on focus, which suits an already-focusable gloss.
+  const id = `gloss-def-${term.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+  const esc = definition.replace(/"/g, '&quot;');
+  return (
+    `<span class="gloss" tabindex="0" title="${esc}" aria-describedby="${id}">${term}</span>` +
+    `<span id="${id}" class="gloss-def">${esc}</span>`
+  );
 }
