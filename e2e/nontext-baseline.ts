@@ -17,6 +17,7 @@ export const NONTEXT_BASELINE: Record<
   string,
   { ratio: number; required: number; unverified: boolean }
 > = {
+  "control-boundary|a.cl-btn": { ratio: 1.32, required: 3.0, unverified: false },
   "control-boundary|button#cl-theme-toggle.cl-btn.cl-icon": { ratio: 1.32, required: 3.0, unverified: false },
   "control-boundary|button#step-tab-build.step-tab": { ratio: 1.26, required: 3.0, unverified: false },
   "control-boundary|button#step-tab-extract.step-tab": { ratio: 1.26, required: 3.0, unverified: false },

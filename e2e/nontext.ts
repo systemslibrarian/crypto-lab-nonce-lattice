@@ -445,6 +445,16 @@ export async function auditNonText(page: Page, within = 'body *'): Promise<NonTe
       '[role=checkbox]',
       '[role=radio]',
       '[role=slider]',
+      // A LINK STYLED AS A BUTTON is a UI component under 1.4.11 and was being
+      // missed entirely: the shared header's Menu and GitHub controls are
+      // `<a class="cl-btn">`, and with no `a` in this list nothing ever judged
+      // them. Restricted to link-shaped BUTTONS — prose links identify
+      // themselves by their text and are not 1.4.11 cases — and anything that
+      // slips through still has to pass the "is it trying to draw itself as a
+      // control?" test below.
+      'a[role=button]',
+      'a[class*=btn]',
+      'a[class*=button]',
     ].join(',');
 
     for (const el of Array.from(document.querySelectorAll(CONTROL))) {
