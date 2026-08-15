@@ -1,10 +1,17 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <script>
+      // Dark is the only theme. Pin it before first paint, and overwrite any
+      // 'light' a visitor stored back when the header carried a theme toggle.
       (function () {
-        const saved = localStorage.getItem('theme');
-        document.documentElement.setAttribute('data-theme', saved ?? 'dark');
+        try {
+          localStorage.setItem('theme', 'dark');
+          localStorage.setItem('cv-theme', 'dark');
+          localStorage.setItem('cl-theme', 'dark');
+          localStorage.setItem('crypto-lab-theme', 'dark');
+        } catch (e) {}
+        document.documentElement.setAttribute('data-theme', 'dark');
       })();
     </script>
     <meta charset="UTF-8" />
@@ -69,9 +76,9 @@
     transition:top .15s ease;
   }
   .cl-skip-link:focus{top:0;outline:2px solid var(--accent,#35d6bb);outline-offset:2px;}
-  /* hide each lab's own in-page theme toggle — the bar's toggle replaces it.
-     element stays in the DOM so the lab's theme JS keeps working. */
-  body :is(#theme-toggle,#themeToggle,.theme-toggle,.theme-toggle-btn,[data-theme-toggle]):not(#cl-theme-toggle){display:none!important}
+  /* Dark is the only theme, so hide any in-page theme toggle a lab still
+     ships. The element stays in the DOM so the lab's theme JS keeps working. */
+  body :is(#theme-toggle,#themeToggle,.theme-toggle,.theme-toggle-btn,[data-theme-toggle]){display:none!important}
   @media(max-width:560px){
     .cl-sub{display:none}
     .cl-btn span{display:none}
@@ -110,23 +117,10 @@
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7 0-.7 0-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0C17.3 5 18.3 5.3 18.3 5.3c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .4.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/></svg>
       <span>GitHub</span>
     </a>
-    <button class="cl-btn cl-icon" id="cl-theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle theme">☀</button>
   </nav>
 </header>
 <script>
   (function () {
-    var t = document.getElementById('cl-theme-toggle');
-    if (t) {
-      var cur = function(){ return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'; };
-      var paint = function(){ t.textContent = cur() === 'light' ? '☾' : '☀'; };
-      paint();
-      t.addEventListener('click', function () {
-        var next = cur() === 'light' ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', next);
-        try { localStorage.setItem('theme', next); } catch (e) {}
-        paint();
-      });
-    }
     // A page may have only one banner landmark. This shared site header is it;
     // demote any banner a lab also declared on its own page header (explicit
     // role="banner", or an implicit <header> child of <body>) so landmarks stay unique.
