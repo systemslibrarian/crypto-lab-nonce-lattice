@@ -81,9 +81,15 @@ html {
   transform: translateY(0);
 }
 
-/* Ensure table scroll on mobile */
-table, .table-shell, .matrix-shell {
+/* Ensure table scroll on mobile. Only the wrapper scrolls: `overflow-x: auto`
+   on the <table> as well made a second scroll container nested inside the
+   first, and that inner one has no keyboard route of its own (WCAG 2.1.1) —
+   `.table-shell` / `.matrix-shell` are the scrollers, and they already carry
+   tabindex="0" and role="region". */
+.table-shell, .matrix-shell {
   overflow-x: auto;
+}
+table, .table-shell, .matrix-shell {
   display: block;
   width: 100%;
 }
@@ -928,7 +934,15 @@ h1 {
   .meta-grid,
   .recovery-grid,
   .config-grid {
-    grid-template-columns: 1fr;
+    /* `minmax(0, 1fr)`, not a bare `1fr`: `1fr` keeps the track's automatic
+       minimum, so the column grows to the widest item's min-content. The
+       signature log's hex columns pushed that to 376px inside a 365px shell
+       and the whole page scrolled sideways (WCAG 1.4.10) — while
+       `.table-shell`, the scroller that exists to absorb exactly that table,
+       sat at full width with nothing to scroll. Every desktop rule above uses
+       `minmax(0, 1fr)` for this reason; collapsing to one column must not
+       drop it. */
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .app-shell {
