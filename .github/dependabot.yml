@@ -1,10 +1,39 @@
+# Grouped so an ecosystem's routine bumps arrive as ONE pull request instead of
+# one per dependency. Ungrouped, this fleet opened 1,461 PRs across 176 repos.
+#
+# Majors are deliberately left OUT of the npm group. When the 2026-08-18 backlog
+# was landed by hand, 109 bumps had to be held back and they were overwhelmingly
+# majors -- @noble/curves and @noble/hashes v2 dropped the export subpaths this
+# lab's source imports, and TypeScript 7 / vitest 4 broke a smaller set. Grouping
+# a breaking major together with the safe bumps makes the whole PR unmergeable,
+# so majors come individually and a human decides.
+#
+# github-actions majors ARE grouped: checkout v4->v7, setup-node v4->v7 and the
+# Pages v5/v6 jumps were verified green across all 176 repos on 2026-08-18.
+#
+# The minor/patch group and the actions group auto-merge once this lab's own gate
+# passes on the PR -- see the dependabot-auto-merge job in the deploy workflow.
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"

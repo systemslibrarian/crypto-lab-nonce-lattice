@@ -18,3 +18,25 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  # Dependabot only. Depends on every gate job in this workflow, so a bump can
+  # only merge itself once this lab's whole PR gate went green. Majors are
+  # excluded -- the 2026-08-18 batch had to hold back 109 bumps and they were
+  # overwhelmingly majors (@noble v2 dropped export subpaths, TypeScript 7,
+  # vitest 4), so those still want a human.
+  dependabot-auto-merge:
+    needs: build-test
+    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@v2
+      - name: Merge minor and patch bumps
+        if: steps.meta.outputs.update-type != 'version-update:semver-major'
+        run: gh pr merge --squash --delete-branch "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
