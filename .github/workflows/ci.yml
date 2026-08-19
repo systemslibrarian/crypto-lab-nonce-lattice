@@ -34,8 +34,11 @@ jobs:
     steps:
       - id: meta
         uses: dependabot/fetch-metadata@v2
-      - name: Merge minor and patch bumps
-        if: steps.meta.outputs.update-type != 'version-update:semver-major'
+      # Majors included on purpose. `needs:` above already required the whole
+      # gate to pass, and that gate -- unit tests, build, axe WCAG and the e2e
+      # claims -- judges a bump far better than its version number does. A major
+      # that actually breaks this lab fails the gate and stays open for a human.
+      - name: Merge any bump whose gate went green
         run: gh pr merge --squash --delete-branch "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
