@@ -31,6 +31,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      actions: write   # required by the deploy dispatch; without it gh workflow run 403s
     steps:
       - id: meta
         uses: dependabot/fetch-metadata@v3
