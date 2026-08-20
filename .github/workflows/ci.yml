@@ -33,7 +33,7 @@ jobs:
       pull-requests: write
     steps:
       - id: meta
-        uses: dependabot/fetch-metadata@v2
+        uses: dependabot/fetch-metadata@v3
       # Majors included on purpose. `needs:` above already required the whole
       # gate to pass, and that gate -- unit tests, build, axe WCAG and the e2e
       # claims -- judges a bump far better than its version number does. A major
