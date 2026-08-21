@@ -15,7 +15,7 @@ export function verify(publicKey: Uint8Array, digest: Uint8Array, r: bigint, s: 
   if (r <= 0n || r >= curve.order || s <= 0n || s >= curve.order) {
     return false;
   }
-  const point = curve.Point.fromHex(publicKey);
+  const point = curve.Point.fromBytes(publicKey);
   const hashScalar = truncateToOrder(digest, curve);
   const w = invert(s, curve.order);
   const u1 = mod(hashScalar * w, curve.order);
