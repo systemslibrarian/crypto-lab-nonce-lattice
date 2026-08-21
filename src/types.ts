@@ -26,19 +26,22 @@ export interface CurveContext {
   bits: number;
   orderBytes: number;
   lowS: boolean;
+  // @noble/curves v2 renamed `toRawBytes` to `toBytes`, and narrowed `fromHex` to
+  // hex strings only -- decoding a Uint8Array is now `fromBytes`, which is what
+  // this app has always passed.
   Point: {
     BASE: {
       multiply(scalar: bigint): {
         add(other: unknown): unknown;
         toAffine(): { x: bigint; y: bigint };
-        toRawBytes(isCompressed?: boolean): Uint8Array;
+        toBytes(isCompressed?: boolean): Uint8Array;
       };
     };
-    fromHex(hex: Uint8Array | string): {
+    fromBytes(bytes: Uint8Array): {
       add(other: unknown): unknown;
       multiply(scalar: bigint): unknown;
       toAffine(): { x: bigint; y: bigint };
-      toRawBytes(isCompressed?: boolean): Uint8Array;
+      toBytes(isCompressed?: boolean): Uint8Array;
     };
   };
   getPublicKey(secretKey: Uint8Array, isCompressed?: boolean): Uint8Array;
