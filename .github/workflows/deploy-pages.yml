@@ -115,6 +115,7 @@ jobs:
           # and the site would keep serving the previous build. Ask for it explicitly;
           # a workflow_dispatch through the API is not suppressed. The dispatched run
           # is the same gate-then-deploy pipeline, so a bad merge still ships nothing.
+          #
           # The filename below is the one THIS repo has: deploy-pages.yml, not the
           # fleet-common deploy.yml. A wrong name 404s only on the auto-merge path,
           # and only after the merge has already landed.
