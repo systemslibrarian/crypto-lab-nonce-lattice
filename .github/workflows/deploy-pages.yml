@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - main
+  # The gate has to judge pull requests too, or the auto-merge job below has
+  # nothing to wait on. That is the whole point of folding ci.yml in here: a
+  # bump must clear the SAME gate the deploy depends on, not a lighter copy.
+  pull_request:
+    branches:
+      - main
+  # Required by the post-merge dispatch at the bottom of this file: a merge made
+  # with GITHUB_TOKEN raises no push event, so the deploy has to be asked for.
   workflow_dispatch:
 
 permissions:
@@ -12,7 +20,10 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  # Keyed by ref, NOT a bare `pages`: now that pull_request is a trigger, a bare
+  # group with cancel-in-progress lets a PR run cancel a live main deploy, and a
+  # `cancelled` run ships nothing while looking like nothing went wrong.
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -44,12 +55,75 @@ jobs:
           path: dist
 
   deploy:
+    # A pull request is tested, never published. NOT `== 'push'` -- that reads as
+    # equivalent but also skips workflow_dispatch, which is the one trigger the
+    # post-merge dispatch depends on: the dispatched run would build, pass the
+    # gate, skip this job, and the site would still never update.
+    if: github.event_name != 'pull_request'
+    needs: build-test
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build-test
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  # Dependabot only. Depends on the SAME build-test job the deploy depends on --
+  # the same job object, not a copy of it -- so a bump can only merge itself once
+  # the gate that decides whether this lab ships went green: typecheck, unit
+  # tests, build, AND the axe WCAG run. It used to live in a separate ci.yml
+  # whose gate stopped at `npm run build`, so a bump only had to satisfy the
+  # lighter of the two. Majors are included on purpose; see below.
+  dependabot-auto-merge:
+    needs: build-test
+    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write   # required by the deploy dispatch; without it gh workflow run 403s
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@v3
+      # Majors included on purpose. `needs:` above already required the whole
+      # gate to pass, and that gate -- unit tests, build, axe WCAG and the e2e
+      # claims -- judges a bump far better than its version number does. A major
+      # that actually breaks this lab fails the gate and stays open for a human.
+      - name: Merge any bump whose gate went green
+        # Retry: a sibling PR merging first moves main underneath us and GitHub
+        # rejects with "Base branch was modified". That is benign, so try again
+        # rather than failing the run over a race.
+        run: |
+          for attempt in 1 2 3; do
+            if gh pr merge --squash --delete-branch "$PR_URL"; then
+              exit 0
+            fi
+            echo "merge attempt $attempt failed; base branch may have moved - retrying"
+            sleep 15
+          done
+          echo "::warning::gate passed but the merge did not land after 3 attempts;"
+          echo "::warning::leaving this PR open - Dependabot will rebase and retry."
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # A merge made with GITHUB_TOKEN raises no push event -- GitHub suppresses
+      # them so workflows cannot retrigger themselves -- so deploy would never run
+      # and the site would keep serving the previous build. Ask for it explicitly;
+      # a workflow_dispatch through the API is not suppressed. The dispatched run
+      # is the same gate-then-deploy pipeline, so a bad merge still ships nothing.
+      # The filename below is the one THIS repo has: deploy-pages.yml, not the
+      # fleet-common deploy.yml. A wrong name 404s only on the auto-merge path,
+      # and only after the merge has already landed.
+      - name: Deploy the merged result
+        if: success()
+        run: |
+          if gh pr view "$PR_URL" --json state --jq .state | grep -q MERGED; then
+            gh workflow run deploy-pages.yml --repo "$GITHUB_REPOSITORY" --ref main \
+              || echo "::warning::deploy dispatch failed; run deploy-pages.yml by hand"
+          fi
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
