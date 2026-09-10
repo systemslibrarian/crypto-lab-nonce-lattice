@@ -96,34 +96,30 @@ jobs:
         # rejects with "Base branch was modified". That is benign, so try again
         # rather than failing the run over a race.
         run: |
+          merged=""
           for attempt in 1 2 3; do
             if gh pr merge --squash --delete-branch "$PR_URL"; then
-              exit 0
+              merged=1
+              break
             fi
             echo "merge attempt $attempt failed; base branch may have moved - retrying"
             sleep 15
           done
-          echo "::warning::gate passed but the merge did not land after 3 attempts;"
-          echo "::warning::leaving this PR open - Dependabot will rebase and retry."
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # A merge made with GITHUB_TOKEN raises no push event -- GitHub suppresses
-      # them so workflows cannot retrigger themselves -- so deploy would never run
-      # and the site would keep serving the previous build. Ask for it explicitly;
-      # a workflow_dispatch through the API is not suppressed. The dispatched run
-      # is the same gate-then-deploy pipeline, so a bad merge still ships nothing.
-      # The filename below is the one THIS repo has: deploy-pages.yml, not the
-      # fleet-common deploy.yml. A wrong name 404s only on the auto-merge path,
-      # and only after the merge has already landed.
-      - name: Deploy the merged result
-        if: success()
-        run: |
-          if gh pr view "$PR_URL" --json state --jq .state | grep -q MERGED; then
-            gh workflow run deploy-pages.yml --repo "$GITHUB_REPOSITORY" --ref main \
-              || echo "::warning::deploy dispatch failed; run deploy-pages.yml by hand"
+          if [ -z "$merged" ]; then
+            echo "::warning::gate passed but the merge did not land after 3 attempts;"
+            echo "::warning::leaving this PR open - Dependabot will rebase and retry."
+            exit 0
           fi
+          # A merge made with GITHUB_TOKEN raises no push event -- GitHub suppresses
+          # them so workflows cannot retrigger themselves -- so deploy would never run
+          # and the site would keep serving the previous build. Ask for it explicitly;
+          # a workflow_dispatch through the API is not suppressed. The dispatched run
+          # is the same gate-then-deploy pipeline, so a bad merge still ships nothing.
+          # The filename below is the one THIS repo has: deploy-pages.yml, not the
+          # fleet-common deploy.yml. A wrong name 404s only on the auto-merge path,
+          # and only after the merge has already landed.
+          gh workflow run deploy-pages.yml --repo "$GITHUB_REPOSITORY" --ref main \
+            || echo "::warning::deploy dispatch failed; run deploy-pages.yml by hand"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
