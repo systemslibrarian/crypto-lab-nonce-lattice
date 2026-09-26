@@ -61,6 +61,16 @@ npm install
 npm run dev
 ```
 
+## Recovery checks
+
+`npm test` runs the seeded MSB-leak transcript through both the app's recovery
+path and `verification/solve_hnp.py`, a separate Python HNP lattice solver.
+The test compares their recovered scalars with the signing key and public key.
+The fixture is generated locally; it is not a published attack-output vector.
+The HNP context is [Nguyen and Shparlinski's partial-nonce work](https://www.di.ens.fr/~pnguyen/pub_NgSh02.htm).
+The existing [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979.html) mode is a
+negative control with no nonce bits supplied to the attack.
+
 ## Related Demos
 
 - [crypto-lab-ecdsa-forge](https://systemslibrarian.github.io/crypto-lab-ecdsa-forge/) — ECDSA nonce reuse and RFC 6979 deterministic nonces.
