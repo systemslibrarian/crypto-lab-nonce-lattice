@@ -19,7 +19,7 @@ It is built for progressive disclosure. A newcomer meets the one governing equat
 8. **Lattice View + key bridge** — the before/after basis matrices and the equation `secretCoordinate / B mod n = d` reading the key out of the short vector.
 9. **Recovery panel** — byte-for-byte comparison of the recovered key against the signer's key, verified against `Q = dG`.
 10. **Nonce-reuse derivation** — the two-line PS3-style algebra (`k`, then `d`) with the real numbers, no lattice needed.
-11. **History & context** — real-world case studies (PS3, Android, Minerva, TPM-FAIL), the historical timeline, and related labs.
+11. **History & context** — real-world case studies (PS3, Android, Minerva, TPM-FAIL, OpenSSL 2026), the historical timeline, and related labs.
 
 **Warning:** This is an educational tool. It does not break real-world cryptosystems. See `docs/limitations.md` and `SECURITY.md`.
 
@@ -50,6 +50,7 @@ The demo lets you generate ECDSA signatures with deliberately leaked or biased n
 - **Android Bitcoin wallets (2013):** a flaw in `SecureRandom` produced repeated ECDSA nonces, enabling theft of funds from affected wallets.
 - **Minerva (2019):** timing side channels leaking the nonce bit-length enabled Hidden Number Problem / lattice key recovery against several ECDSA implementations.
 - **TPM-Fail (2019):** nonce timing leakage in TPM firmware allowed ECDSA private-key recovery via lattice methods.
+- **OpenSSL advisory (29 September 2026):** [CVE-2026-54872](https://openssl-library.org/news/secadv/20260929.txt) discloses a small signing-time nonce leak in generic EC scalar multiplication, affecting Brainpool and other generic prime curves and SM2 on its generic path. Many timing measurements may enable lattice/HNP key recovery; the advisory does not establish universal practical exploitation. OpenSSL's dedicated P-256, P-384 and P-521 implementations are unaffected by this CVE. This lab uses different implementations and deliberately supplied nonce bits: it does not measure timing or reproduce the OpenSSL vulnerability. Follow the advisory's branch-specific upgrade guidance for affected deployments.
 - **RFC 6979 deterministic ECDSA:** standardized in part to eliminate the RNG-driven nonce failures this attack class exploits.
 
 ## How to Run Locally

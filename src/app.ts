@@ -291,6 +291,11 @@ function renderCaseStudies(): string {
           <summary>TPM-FAIL (2019) — Intel fTPM and STMicro leaking nonce bits</summary>
           <p>Moghimi, Sunar, Eisenbarth, and Heninger showed that both the Intel firmware TPM (fTPM) running on the Management Engine and a certified STMicroelectronics discrete TPM chip leaked ECDSA nonce information through timing. On the Intel fTPM, the modular inversion step during signing varied by up to 10,000 cycles depending on the nonce value, measurable from userspace via <code>rdtsc</code> with no special privileges. On the ST chip, the leak was observable over a network from the same rack. With a few thousand measurements and a straightforward HNP lattice reduction, both the P-256 and P-384 private keys stored in the TPM could be extracted — keys that protect disk encryption, remote attestation, and platform integrity on affected machines.</p>
         </details>
+        <details data-openssl-case>
+          <summary>OpenSSL (29 September 2026) — conditional nonce timing leakage</summary>
+          <p><a href="https://openssl-library.org/news/secadv/20260929.txt" target="_blank" rel="noopener noreferrer">OpenSSL's advisory for CVE-2026-54872</a> describes a small nonce timing leak in generic EC scalar multiplication used by Brainpool and other generic prime curves, and SM2 on its generic path. Many timing measurements may enable lattice / Hidden Number Problem key recovery; the advisory does not establish universal practical exploitation. OpenSSL's dedicated P-256, P-384 and P-521 implementations are unaffected by this CVE.</p>
+          <p>This lab uses different implementations and deliberately supplied nonce bits. It does not measure timing or reproduce the OpenSSL vulnerability. The case illustrates how a real implementation leak can supply information to an HNP attack, rather than a break of elliptic-curve mathematics. Affected deployments should follow the advisory's branch-specific upgrade guidance.</p>
+        </details>
       </div>
     </section>
   `;
@@ -306,6 +311,7 @@ function renderTimeline(): string {
     ['2019', 'Minerva extracts nonce bits from smart cards.'],
     ['2019', 'TPM-FAIL lands against vendor TPM stacks.'],
     ['2024', 'KyberSlash shows the same implementation class survives PQC.'],
+    ['2026', 'OpenSSL discloses conditional EC nonce timing leakage.'],
   ];
 
   return `
