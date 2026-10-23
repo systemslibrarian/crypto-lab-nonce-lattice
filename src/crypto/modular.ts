@@ -3,6 +3,9 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import type { CurveContext } from '../types';
 
 export function mod(value: bigint, modulus: bigint): bigint {
+  if (modulus <= 0n) {
+    throw new Error('Modulus must be positive');
+  }
   const result = value % modulus;
   return result >= 0n ? result : result + modulus;
 }
@@ -38,10 +41,13 @@ export function bitLength(value: bigint): number {
   if (value === 0n) {
     return 0;
   }
-  return value.toString(2).length;
+  return (value < 0n ? -value : value).toString(2).length;
 }
 
 export function pow2(bits: number): bigint {
+  if (!Number.isSafeInteger(bits) || bits < 0) {
+    throw new Error('Bit count must be a non-negative safe integer');
+  }
   return 1n << BigInt(bits);
 }
 
@@ -54,6 +60,12 @@ export function bytesToBigInt(bytes: Uint8Array): bigint {
 }
 
 export function bigIntToBytes(value: bigint, length: number): Uint8Array {
+  if (!Number.isSafeInteger(length) || length < 0 || length > 65_536) {
+    throw new Error('Byte length must be an integer from 0 through 65536');
+  }
+  if (value < 0n || value >= (1n << BigInt(length * 8))) {
+    throw new Error('Integer does not fit in the requested byte length');
+  }
   let remaining = value;
   const output = new Uint8Array(length);
   for (let index = length - 1; index >= 0; index -= 1) {
@@ -69,6 +81,9 @@ export function bytesToHex(bytes: Uint8Array): string {
 
 export function hexToBytes(hex: string): Uint8Array {
   const normalized = hex.startsWith('0x') ? hex.slice(2) : hex;
+  if (!/^[0-9a-f]*$/i.test(normalized)) {
+    throw new Error('Hex input contains non-hexadecimal characters');
+  }
   const padded = normalized.length % 2 === 0 ? normalized : `0${normalized}`;
   const output = new Uint8Array(padded.length / 2);
   for (let index = 0; index < padded.length; index += 2) {
@@ -115,6 +130,9 @@ export function isWithinBound(value: bigint, bound: bigint): boolean {
 }
 
 export function randomBytes(length: number): Uint8Array {
+  if (!Number.isSafeInteger(length) || length < 0 || length > 65_536) {
+    throw new Error('Random byte length must be an integer from 0 through 65536');
+  }
   const output = new Uint8Array(length);
   crypto.getRandomValues(output);
   return output;

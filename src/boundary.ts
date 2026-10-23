@@ -3,9 +3,10 @@ import type { AppConfigView, CurveContext } from './types';
 /**
  * The feasibility gauge draws two curves. This module *measures* them.
  *
- * The drawn curves are a model: an information floor (bits × signatures must
- * exceed the secret's entropy) plus a hand-calibrated numerical margin for the
- * demo's floating-point LLL. Nothing on the page ever checked that model
+ * The drawn curves are a model: a simple bits × signatures budget line plus a
+ * hand-calibrated numerical margin for the demo's floating-point LLL. The first
+ * line is a useful guide, not an information-theoretic impossibility result.
+ * Nothing on the page ever checked that model
  * against what the attack actually does. A measured sweep does: for one
  * signature count it runs the REAL end-to-end attack — fresh key, fresh
  * signatures, real LLL, real byte-for-byte validation — several times at each
@@ -31,16 +32,16 @@ export const MAX_SWEEP_SIGNATURES = 16;
 /** Independent runs per ladder rung. Each is a fresh key and fresh signatures. */
 export const TRIALS_PER_LEVEL = 3;
 
-/** Rungs below and above ceil(information floor) that the ladder covers. */
+/** Rungs below and above the rounded bit-count guide that the ladder covers. */
 const LEVELS_BELOW = 2;
 const LEVELS_ABOVE = 3;
 
-/** Minimum leaked bits per signature that keeps bits·signatures above the info floor. */
+/** Per-signature leak size on the simple bits·signatures = curve.bits guide. */
 export function infoFloorBits(signatureCount: number, curve: CurveContext): number {
   return curve.bits / Math.max(signatureCount, 1);
 }
 
-/** Practical boundary for this demo's float LLL: info floor plus a numerical margin
+/** Practical boundary for this demo's float LLL: bit-count guide plus a numerical margin
  *  that shrinks as more signatures pile on redundant constraints. Calibrated against
  *  the shipped recover-key tests — the default (24 leaked bits × 12 signatures) recovers
  *  reliably and must land above this line, while thin configs (e.g. 24 bits × 3 sigs) do
@@ -56,7 +57,7 @@ export type LadderRefusal =
   | 'no-bit-axis'
   /** Too many signatures for an in-browser sweep. */
   | 'too-many-signatures'
-  /** Even the lowest rung above the information floor is past the 32-bit control cap. */
+  /** The ladder centered on the bit-count guide is past the 32-bit control cap. */
   | 'floor-above-cap';
 
 export interface LadderPlan {
@@ -72,9 +73,9 @@ export interface LadderPlan {
 
 /**
  * Decide which leak sizes to probe for this configuration — or refuse, with a
- * reason the UI can state. The ladder straddles the information floor so the
- * sweep always includes at least one rung the theory says is impossible, as a
- * control on the rungs it says are not.
+ * reason the UI can state. The ladder straddles the simple bit-count guide so
+ * the sweep includes at least one lower-budget control rung. That guide is not
+ * a proof that recovery below it is impossible; measuring the ramp is the point.
  */
 export function planLadder(config: AppConfigView, curve: CurveContext): LadderPlan {
   const floor = infoFloorBits(config.signatureCount, curve);
@@ -124,8 +125,8 @@ export interface SweepSummary {
   rampBits: number[];
   /** Signed gap: measured boundary minus the drawn practical curve, in bits. */
   gapToPractical: number | null;
-  /** Whether any rung strictly below the information floor recovered the key.
-   *  This happens near the floor: the extractor tries every candidate scalar the
+  /** Whether any rung strictly below the bit-count guide recovered the key.
+   *  This happens near the guide: the extractor tries every candidate scalar the
    *  reduced basis offers, so a deficit of a bit or two can still be closed. */
   recoveredBelowFloor: boolean;
   totalRuns: number;

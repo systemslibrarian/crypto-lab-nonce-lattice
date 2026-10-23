@@ -7,7 +7,7 @@ export function getDiagnostic(reason: string): string {
     case 'lattice-failure':
       return 'The lattice reduction did not produce a useful candidate. Try the recommended preset.';
     case 'defender-mode':
-      return 'RFC6979 defender mode is working as intended: no repeated or biased nonce was introduced.';
+      return 'RFC6979 defender mode is working as intended: no RNG-driven reuse or bias was introduced, and this lab supplied no side-channel nonce bits. RFC6979 does not itself prevent implementation leakage.';
     case 'out-of-range':
       return 'This mode is outside the browser-safe demo range.';
     default:

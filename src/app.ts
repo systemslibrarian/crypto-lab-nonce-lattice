@@ -1,4 +1,5 @@
 import { runAnalysis, type AnalysisBundle, type AnalysisRequest, type AnalysisResponse } from './analysis';
+import { DEFAULT_CONFIG, normalizeConfig } from './config';
 import { bytesToHex, formatScalar } from './crypto/modular';
 import { p256Curve } from './curves/p256';
 import { secp256k1Curve } from './curves/secp256k1';
@@ -18,6 +19,7 @@ import {
 import { renderLatticeView } from './ui/lattice-view';
 import { renderRecoveryPanel } from './ui/recovery-panel';
 import { renderSignatureLog } from './ui/signature-log';
+import { escapeHtml } from './ui/escape';
 import type { AppConfigView, CurveContext, FixedPrefixVariant, LeakConfig } from './types';
 
 const curveMap: Record<string, CurveContext> = {
@@ -29,17 +31,7 @@ function isCloneSerializationError(message: string): boolean {
   return /could not be cloned|DataCloneError/i.test(message);
 }
 
-const MAX_SIGNATURE_COUNT = 32;
 const STORAGE_CONFIG_KEY = 'nonce-lattice-config';
-
-const DEFAULT_CONFIG: AppConfigView = {
-  curve: 'secp256k1',
-  leakMode: 'msb',
-  leakedBits: 24,
-  signatureCount: 12,
-  fixedPrefixVariant: 'random-tail',
-  fixedPrefixValue: '',
-};
 
 const presets: Record<string, AppConfigView> = {
   'fast-msb': {
@@ -119,15 +111,6 @@ function saveConfig(config: AppConfigView): void {
   }
 }
 
-function normalizeConfig(config: AppConfigView): AppConfigView {
-  return {
-    ...config,
-    leakedBits: Math.max(0, Math.min(32, Math.trunc(config.leakedBits))),
-    signatureCount: Math.max(2, Math.min(MAX_SIGNATURE_COUNT, Math.trunc(config.signatureCount))),
-    fixedPrefixValue: config.fixedPrefixValue.trim(),
-  };
-}
-
 function readConfig(form: HTMLFormElement): AppConfigView {
   const formData = new FormData(form);
   const leakMode = String(formData.get('leakMode') ?? 'msb') as LeakConfig['mode'];
@@ -147,7 +130,7 @@ function scenarioDescription(config: AppConfigView): string {
     return 'Sony PS3-style nonce reuse: two signatures are enough to recover d.';
   }
   if (config.leakMode === 'rfc6979') {
-    return 'Deterministic nonces remove the leak, so the lattice should fail cleanly.';
+    return 'RFC 6979 removes RNG-driven bias and reuse; this run supplies no nonce bits to the attacker, so the modeled attack should fail cleanly.';
   }
   if (config.leakMode === 'fixed-prefix') {
     return 'Browser-safe demo preset: a 24-bit fixed prefix plus 12 signatures gives a fast, reliable lattice recovery.';
@@ -219,7 +202,7 @@ function renderHowItWorks(config: AppConfigView, analysis: AnalysisBundle | null
           ? `In this run, each nonce shares a fixed high-bit prefix and differs only in the tail. That gives repeated structure across signatures and creates the bounded variables needed for key recovery.`
           : config.leakMode === 'fixed-constant'
             ? 'This run is a nonce-reuse case. If two signatures share the same r, the secret key can be solved algebraically without lattice reduction.'
-            : 'This run uses RFC 6979 deterministic nonces. With no nonce leakage, the lattice should not recover the key.';
+            : 'This run uses RFC 6979 deterministic nonces and supplies no nonce bits to the attacker, so this modeled lattice attack should not recover the key. RFC 6979 prevents RNG-driven bias and reuse; it does not by itself stop an implementation side channel from leaking the deterministic nonce.';
 
   const statusExplanation = analysis
     ? analysis.recovery.recoveredKey === null
@@ -273,11 +256,11 @@ function renderCaseStudies(): string {
       <div class="details-stack">
         <details open>
           <summary>PS3 (2010) — Sony firmware nonce reuse</summary>
-          <p>Sony signed every PlayStation 3 firmware update with the same ECDSA nonce <code>k</code>. Because <code>k</code> is identical across signatures, the <code>r</code> values match, and two equations in two unknowns collapse immediately: <code>k = (h₁ − h₂)(s₁ − s₂)⁻¹ mod n</code>, then <code>d = (s₁k − h₁)r⁻¹ mod n</code>. The private key that protects the entire console signing chain fell to arithmetic a first-year student could follow. fail0verflow (bushing, marcan, segher, sven) demonstrated the recovery on stage at 27C3, the Chaos Communication Congress, on 29 December 2010; George Hotz published the derived root signing key days later, in early January 2011.</p>
+          <p>PlayStation 3 firmware signatures reused an ECDSA nonce <code>k</code>. Because <code>k</code> is identical across two signatures, their <code>r</code> values match, and two equations collapse immediately: <code>k = (h₁ − h₂)(s₁ − s₂)⁻¹ mod n</code>, then <code>d = (s₁k − h₁)r⁻¹ mod n</code>. fail0verflow demonstrated the signing failure at 27C3 in December 2010. The important lesson is the algebra shown by this lab: nonce reuse, not a weakness in the elliptic curve, exposes the signing key.</p>
         </details>
         <details>
           <summary>Android Bitcoin wallet bug (2013) — broken SecureRandom</summary>
-          <p>In August 2013 a flaw in Android's <code>SecureRandom</code> PRNG caused the JVM entropy pool to be seeded with the same value across process restarts on certain devices. Bitcoin wallets using ECDSA over secp256k1 produced signatures where <code>k</code> repeated across different transactions — sometimes across different users on the same ROM build. Matching <code>r</code> values in the blockchain were detectable by anyone scanning for them, and the private keys followed immediately. Researchers scanned the public ledger, found the collisions, and the Bitcoin Security team issued an emergency patch within days. Wallet funds were drained in the window before users updated.</p>
+          <p>In August 2013, Bitcoin.org warned that weaknesses in Android's secure-random-number component affected wallets that generated keys or ECDSA nonces on Android. Repeated nonce values leave matching <code>r</code> values in public transactions; once two signatures under one key reuse a nonce, the private key follows from the same two-equation recovery shown here. Wallet maintainers shipped updates and instructed users to rotate affected keys. The incident demonstrates why a signer must not rely on a broken randomness path.</p>
         </details>
         <details>
           <summary>Boneh–Venkatesan / Howgrave-Graham &amp; Smart / Nguyen–Shparlinski (1996–2003) — the lattice framing</summary>
@@ -289,7 +272,7 @@ function renderCaseStudies(): string {
         </details>
         <details>
           <summary>TPM-FAIL (2019) — Intel fTPM and STMicro leaking nonce bits</summary>
-          <p>Moghimi, Sunar, Eisenbarth, and Heninger showed that both the Intel firmware TPM (fTPM) running on the Management Engine and a certified STMicroelectronics discrete TPM chip leaked ECDSA nonce information through timing. On the Intel fTPM, the modular inversion step during signing varied by up to 10,000 cycles depending on the nonce value, measurable from userspace via <code>rdtsc</code> with no special privileges. On the ST chip, the leak was observable over a network from the same rack. With a few thousand measurements and a straightforward HNP lattice reduction, both the P-256 and P-384 private keys stored in the TPM could be extracted — keys that protect disk encryption, remote attestation, and platform integrity on affected machines.</p>
+          <p>Moghimi, Sunar, Eisenbarth, and Heninger found secret-dependent ECDSA signing times in Intel's firmware TPM and a certified STMicroelectronics discrete TPM. Their paper reports Intel fTPM key recovery after about 1,300 observations and STMicroelectronics ECDSA key recovery after fewer than 40,000 observations. They also demonstrated a remote StrongSwan attack that recovered a server authentication key from 45,000 timed handshakes. These are device- and attack-specific results, not a claim that every TPM or every network path leaks.</p>
         </details>
         <details data-openssl-case>
           <summary>OpenSSL (29 September 2026) — conditional nonce timing leakage</summary>
@@ -501,7 +484,7 @@ function renderApp(state: AppState): string {
   const summary = loading
     ? `<span class="loading-label"><span class="spinner"></span> Running lattice analysis… <span class="elapsed-badge" id="elapsed-badge">${state.elapsedMs > 0 ? state.elapsedMs + ' ms' : '0 ms'}</span></span>`
     : error
-      ? `Analysis failed: ${error}`
+      ? `Analysis failed: ${escapeHtml(error)}`
       : analysis === null
         ? 'Choose a preset or submit parameters to run the attack.'
         : analysis.recovery.recoveredKey === null
@@ -529,7 +512,7 @@ function renderApp(state: AppState): string {
               <h2>Failed to run</h2>
             </div>
           </div>
-          <p class="muted">${error}</p>
+          <p class="muted">${escapeHtml(error)}</p>
         </section>
       `
       : analysis === null

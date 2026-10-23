@@ -5,12 +5,13 @@ import {
   bigIntToBytes,
   bytesToBigInt,
   centerMod,
-  mod,
   pow2,
   randomScalar,
   truncateToOrder,
 } from './modular';
 import type { CurveContext, GeneratedNonce, LeakConfig, NonceGenerator } from '../types';
+
+const MAX_SAMPLING_ATTEMPTS = 256;
 
 function concatBytes(...parts: Uint8Array[]): Uint8Array {
   const totalLength = parts.reduce((sum, part) => sum + part.length, 0);
@@ -76,13 +77,80 @@ function randomBits(bitCount: number): bigint {
   return bytesToBigInt(bytes);
 }
 
+function isValidNonce(candidate: bigint, curve: CurveContext): boolean {
+  return candidate > 0n && candidate < curve.order;
+}
+
+function sampleNonce(factory: () => bigint, curve: CurveContext): bigint {
+  for (let attempt = 0; attempt < MAX_SAMPLING_ATTEMPTS; attempt += 1) {
+    const candidate = factory();
+    if (isValidNonce(candidate, curve)) {
+      return candidate;
+    }
+  }
+  throw new Error('Unable to sample a valid nonce for this leakage configuration.');
+}
+
+function validateConfig(config: LeakConfig, curve: CurveContext, privateKey: bigint): void {
+  const modes = new Set<LeakConfig['mode']>(['rfc6979', 'msb', 'lsb', 'fixed-prefix', 'fixed-constant']);
+  if (!modes.has(config.mode)) {
+    throw new Error('Unsupported nonce mode.');
+  }
+  if (!Number.isInteger(config.bits) || config.bits < 0 || config.bits > curve.bits) {
+    throw new Error(`Leak size must be an integer from 0 through ${curve.bits}.`);
+  }
+  if ((config.mode === 'msb' || config.mode === 'lsb') && config.bits === curve.bits) {
+    throw new Error('MSB and LSB demo modes must leave at least one unknown nonce bit.');
+  }
+  if (privateKey <= 0n || privateKey >= curve.order) {
+    throw new Error('Private key must be a scalar in the curve order range.');
+  }
+  if (
+    config.fixedPrefixVariant !== undefined &&
+    config.fixedPrefixVariant !== 'random-tail' &&
+    config.fixedPrefixVariant !== 'constant-nonce'
+  ) {
+    throw new Error('Unsupported fixed-prefix variant.');
+  }
+  if (config.fixedPrefixValue !== undefined) {
+    const limit = pow2(config.bits);
+    if (config.fixedPrefixValue < 0n || config.fixedPrefixValue >= limit) {
+      throw new Error('Fixed prefix does not fit within the configured leak size.');
+    }
+  }
+}
+
 export function createNonceGenerator(config: LeakConfig, curve: CurveContext, privateKey: bigint): NonceGenerator {
+  validateConfig(config, curve, privateKey);
   const fixedPrefixBits = config.bits;
-  const prefixShift = Math.max(curve.bits - fixedPrefixBits, 0);
-  const storedPrefix =
-    config.mode === 'fixed-prefix'
-      ? mod(config.fixedPrefixValue ?? randomBits(fixedPrefixBits), pow2(Math.max(fixedPrefixBits, 1)))
-      : 0n;
+  const prefixShift = curve.bits - fixedPrefixBits;
+  const prefixLimit = pow2(fixedPrefixBits);
+  let storedPrefix = 0n;
+  let constantPrefixNonce: bigint | null = null;
+  if (config.mode === 'fixed-prefix') {
+    const variant = config.fixedPrefixVariant ?? 'random-tail';
+    if (config.fixedPrefixValue !== undefined) {
+      storedPrefix = config.fixedPrefixValue;
+    } else if (variant === 'constant-nonce') {
+      if (fixedPrefixBits === 0) {
+        throw new Error('A constant fixed-prefix nonce needs at least one nonzero prefix bit.');
+      }
+      constantPrefixNonce = sampleNonce(() => randomBits(fixedPrefixBits) << BigInt(prefixShift), curve);
+      storedPrefix = constantPrefixNonce >> BigInt(prefixShift);
+    } else {
+      storedPrefix = randomBits(fixedPrefixBits);
+    }
+    if (storedPrefix < 0n || storedPrefix >= prefixLimit) {
+      throw new Error('Fixed prefix does not fit within the configured leak size.');
+    }
+    if (variant === 'constant-nonce' && constantPrefixNonce === null) {
+      const candidate = storedPrefix << BigInt(prefixShift);
+      if (!isValidNonce(candidate, curve)) {
+        throw new Error('The selected prefix would produce an invalid constant nonce.');
+      }
+      constantPrefixNonce = candidate;
+    }
+  }
   const reusedNonce = config.mode === 'fixed-constant' ? randomScalar(curve) : null;
 
   return (digest, _sampleIndex, _attempt): GeneratedNonce => {
@@ -103,51 +171,38 @@ export function createNonceGenerator(config: LeakConfig, curve: CurveContext, pr
     }
 
     if (config.mode === 'msb') {
-      const unknownBits = Math.max(curve.bits - config.bits, 1);
-      while (true) {
-        const tail = randomBits(unknownBits);
-        const candidate = tail;
-        if (candidate > 0n && candidate < curve.order) {
-          return {
-            k: candidate,
-            knownLeak: { kind: 'msb', bits: config.bits, value: 0n },
-            leakedLabel: `${config.bits} known MSBs = ${'0'.repeat(config.bits)}`,
-          };
-        }
-      }
+      const unknownBits = curve.bits - config.bits;
+      const candidate = sampleNonce(() => randomBits(unknownBits), curve);
+      return {
+        k: candidate,
+        knownLeak: { kind: 'msb', bits: config.bits, value: 0n },
+        leakedLabel: `${config.bits} known MSBs = ${'0'.repeat(config.bits)}`,
+      };
     }
 
     if (config.mode === 'lsb') {
-      const unknownBits = Math.max(curve.bits - config.bits, 1);
-      while (true) {
-        const high = randomBits(unknownBits);
-        const candidate = high << BigInt(config.bits);
-        if (candidate > 0n && candidate < curve.order) {
-          return {
-            k: candidate,
-            knownLeak: { kind: 'lsb', bits: config.bits, value: 0n },
-            leakedLabel: `${config.bits} known LSBs = ${'0'.repeat(config.bits)}`,
-          };
-        }
-      }
+      const unknownBits = curve.bits - config.bits;
+      const candidate = sampleNonce(() => randomBits(unknownBits) << BigInt(config.bits), curve);
+      return {
+        k: candidate,
+        knownLeak: { kind: 'lsb', bits: config.bits, value: 0n },
+        leakedLabel: `${config.bits} known LSBs = ${'0'.repeat(config.bits)}`,
+      };
     }
 
     if (config.mode === 'fixed-prefix') {
-      const unknownBits = Math.max(prefixShift, 1);
-      while (true) {
-        const tail = config.fixedPrefixVariant === 'constant-nonce' ? 0n : randomBits(unknownBits);
-        const candidate = (storedPrefix << BigInt(prefixShift)) | tail;
-        if (candidate > 0n && candidate < curve.order) {
-          return {
-            k: candidate,
-            knownLeak: { kind: 'fixed-prefix', bits: config.bits, value: storedPrefix & topMask(config.bits) },
-            leakedLabel: `fixed prefix ${storedPrefix.toString(16)} (${config.bits} MSBs)`,
-          };
-        }
-      }
+      const candidate = constantPrefixNonce ?? sampleNonce(
+        () => (storedPrefix << BigInt(prefixShift)) | randomBits(prefixShift),
+        curve,
+      );
+      return {
+        k: candidate,
+        knownLeak: { kind: 'fixed-prefix', bits: config.bits, value: storedPrefix & topMask(config.bits) },
+        leakedLabel: `fixed prefix ${storedPrefix.toString(16)} (${config.bits} MSBs)`,
+      };
     }
 
-    throw new Error('Unsupported nonce mode');
+    throw new Error('Unsupported nonce mode.');
   };
 }
 
