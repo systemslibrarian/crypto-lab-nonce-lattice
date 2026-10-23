@@ -21,7 +21,7 @@ const base: AppConfigView = {
 };
 
 describe('ladder planning', () => {
-  it('straddles the information floor so every sweep includes an impossible rung', () => {
+  it('straddles the bit-count guide so every sweep includes a lower-budget control rung', () => {
     const plan = planLadder({ ...base, signatureCount: 12 }, secp256k1Curve);
     expect(plan.refusal).toBeUndefined();
     const floor = infoFloorBits(12, secp256k1Curve);
@@ -54,7 +54,7 @@ describe('ladder planning', () => {
     ).toBeUndefined();
   });
 
-  it('refuses columns whose information floor is past the 32-bit leak control', () => {
+  it('refuses columns whose centered bit-count ladder is past the 32-bit leak control', () => {
     // 256 / 4 = 64 bits per signature; nothing reachable clears the floor.
     const plan = planLadder({ ...base, signatureCount: 4 }, secp256k1Curve);
     expect(plan.refusal).toBe('floor-above-cap');
@@ -91,7 +91,7 @@ describe('sweep summary', () => {
     expect(s.gapToPractical).toBeNull();
   });
 
-  it('flags a recovery below the information floor as suspect', () => {
+  it('records recovery below the bit-count guide without treating it as impossible', () => {
     const belowFloor = Math.floor(plan.floor) - 1;
     expect(summarizeSweep(plan, [probe(belowFloor, 1)]).recoveredBelowFloor).toBe(true);
     expect(summarizeSweep(plan, [probe(Math.ceil(plan.floor) + 1, 3)]).recoveredBelowFloor).toBe(
