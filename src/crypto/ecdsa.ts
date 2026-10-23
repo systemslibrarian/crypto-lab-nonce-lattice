@@ -5,7 +5,6 @@ import {
   hashToScalar,
   invert,
   mod,
-  randomScalar,
   truncateToOrder,
   utf8ToBytes,
 } from './modular';
@@ -15,24 +14,34 @@ export function verify(publicKey: Uint8Array, digest: Uint8Array, r: bigint, s: 
   if (r <= 0n || r >= curve.order || s <= 0n || s >= curve.order) {
     return false;
   }
-  const point = curve.Point.fromBytes(publicKey);
-  const hashScalar = truncateToOrder(digest, curve);
-  const w = invert(s, curve.order);
-  const u1 = mod(hashScalar * w, curve.order);
-  const u2 = mod(r * w, curve.order);
-  const resultPoint = curve.Point.BASE.multiply(u1).add(point.multiply(u2) as never) as {
-    toAffine(): { x: bigint };
-  };
-  const affine = resultPoint.toAffine();
-  return mod(affine.x, curve.order) === r;
+  try {
+    const point = curve.Point.fromBytes(publicKey);
+    const hashScalar = truncateToOrder(digest, curve);
+    const w = invert(s, curve.order);
+    const u1 = mod(hashScalar * w, curve.order);
+    const u2 = mod(r * w, curve.order);
+    const resultPoint = curve.Point.BASE.multiply(u1).add(point.multiply(u2) as never) as {
+      toAffine(): { x: bigint };
+    };
+    const affine = resultPoint.toAffine();
+    return mod(affine.x, curve.order) === r;
+  } catch {
+    return false;
+  }
 }
 
 function signDigest(privateKey: bigint, digest: Uint8Array, curve: CurveContext, nonceGenerator: NonceGenerator, sampleIndex: number): SignatureRecord {
+  if (privateKey <= 0n || privateKey >= curve.order) {
+    throw new Error('Private key must be a scalar in the curve order range.');
+  }
   const publicKey = curve.getPublicKey(bigIntToBytes(privateKey, curve.orderBytes), false);
   const h = truncateToOrder(digest, curve);
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const nonce = nonceGenerator(digest, sampleIndex, attempt);
-    const k = nonce.k === 0n ? randomScalar(curve) : nonce.k;
+    const k = nonce.k;
+    if (k <= 0n || k >= curve.order) {
+      continue;
+    }
     const point = curve.Point.BASE.multiply(k);
     const affine = point.toAffine();
     const r = mod(affine.x, curve.order);

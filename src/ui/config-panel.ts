@@ -1,4 +1,5 @@
 import type { AppConfigView } from '../types';
+import { escapeHtml } from './escape';
 
 export function renderConfigPanel(config: AppConfigView): string {
   return `
@@ -31,7 +32,7 @@ export function renderConfigPanel(config: AppConfigView): string {
             <option value="lsb" ${config.leakMode === 'lsb' ? 'selected' : ''}>LSB leak — bottom bits known</option>
             <option value="fixed-prefix" ${config.leakMode === 'fixed-prefix' ? 'selected' : ''}>Fixed prefix — shared top bits</option>
             <option value="fixed-constant" ${config.leakMode === 'fixed-constant' ? 'selected' : ''}>Reused nonce — PS3-style</option>
-            <option value="rfc6979" ${config.leakMode === 'rfc6979' ? 'selected' : ''}>RFC 6979 — deterministic (secure)</option>
+            <option value="rfc6979" ${config.leakMode === 'rfc6979' ? 'selected' : ''}>RFC 6979 — no modeled leak</option>
           </select>
         </label>
         <label>
@@ -51,7 +52,7 @@ export function renderConfigPanel(config: AppConfigView): string {
         </label>
         <label>
           <span>Fixed Prefix (hex, optional)</span>
-          <input name="fixedPrefixValue" type="text" value="${config.fixedPrefixValue}" placeholder="e.g. deadbeef" />
+          <input name="fixedPrefixValue" type="text" value="${escapeHtml(config.fixedPrefixValue)}" placeholder="e.g. deadbeef" inputmode="text" autocomplete="off" spellcheck="false" />
         </label>
         <button class="primary-button" type="submit">▶ Generate Attack</button>
       </form>

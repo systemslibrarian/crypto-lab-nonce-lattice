@@ -21,7 +21,7 @@ describe('Recovery Presets', () => {
  * The shape assertions above never touched the presets' central claim: that a preset
  * labelled `expectedResult: 'demo-key'` recovers the key. It did not. Every lattice
  * preset shipped 8 signatures at 24 leaked bits -- 192 bits of leakage against a
- * 256-bit curve order, below the information floor -- and recovered nothing on any
+ * 256-bit curve order, below the bit-count guide -- and recovered nothing on any
  * run. These tests push each preset through the real pipeline so the label cannot
  * drift away from the behaviour again.
  */

@@ -310,7 +310,7 @@ test('RFC 6979 defender: the attack fails cleanly and says why', async ({ page }
   await runPreset(page, 'defender');
 
   await expect(page.locator('.scenario-line')).toContainText(
-    'Deterministic nonces remove the leak',
+    'this run supplies no nonce bits',
   );
   await expect(page.locator('.summary-line')).toContainText('no matching key recovered');
 
@@ -335,7 +335,7 @@ test('RFC 6979 defender: the attack fails cleanly and says why', async ({ page }
   );
 });
 
-test('under-determined config: below the information floor the run fails and explains itself', async ({
+test('lower-budget config: below the bit-count guide the run fails and explains itself', async ({
   page,
 }) => {
   await openApp(page);
@@ -344,9 +344,9 @@ test('under-determined config: below the information floor the run fails and exp
   await page.locator('input[name="leakedBits"]').fill('4');
   await page.locator('input[name="signatureCount"]').fill('4');
   // The gauge must call this out *before* the run is even submitted.
-  await expect(page.locator('.feasibility-badge')).toHaveText('INFEASIBLE');
+  await expect(page.locator('.feasibility-badge')).toHaveText('BELOW GUIDE');
   await expect(page.locator('.feasibility-region')).toContainText(
-    'Below the information floor',
+    'Below the bit-count guide',
   );
 
   await page.locator('.primary-button').click();
@@ -374,7 +374,7 @@ test('the feasibility gauge classifies against the boundary it documents', async
   await openApp(page);
   await page.locator('select[name="leakMode"]').selectOption('msb');
 
-  // Boundary as stated on the panel: the information floor is curveBits / signatures,
+  // Boundary as stated on the panel: the bit-count guide is curveBits / signatures,
   // and the practical curve adds the float-LLL margin 1.5 + 6/signatures.
   const curveBits = 256;
   const cases: Array<[number, number]> = [
@@ -393,7 +393,7 @@ test('the feasibility gauge classifies against the boundary it documents', async
 
     const floor = curveBits / sigs;
     const practical = floor + 1.5 + 6 / sigs;
-    const expected = bits < floor ? 'INFEASIBLE' : bits < practical ? 'MARGINAL' : 'FEASIBLE';
+    const expected = bits < floor ? 'BELOW GUIDE' : bits < practical ? 'MARGINAL' : 'FEASIBLE';
 
     await expect(
       page.locator('.feasibility-badge'),
@@ -442,7 +442,7 @@ test('the honesty caption states this curve at full size and the real HNP bound'
   const reality = page.locator('.feasibility-reality');
 
   await expect(reality).toContainText('this really is secp256k1, a full 256-bit order');
-  // sqrt(256) = 16, the Boneh-Venkatesan / Nguyen-Shparlinski figure the README quotes.
+  // sqrt(256) = 16, the asymptotic Nguyen-Shparlinski figure the README quotes.
   await expect(reality).toContainText('≈ 16 bits');
   // The 32-signature cap the README explains, matching the control that enforces it.
   await expect(reality).toContainText('only goes up to 32 signatures');

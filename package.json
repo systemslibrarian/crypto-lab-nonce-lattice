@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run test:workflow-controls && tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:workflow-controls": "node --test tests/workflow-controls.node.mjs",
     "test:a11y": "playwright test",
     "typecheck": "tsc --noEmit"
   },

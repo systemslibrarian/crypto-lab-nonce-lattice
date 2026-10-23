@@ -1,16 +1,23 @@
 import { buildHnpInstance } from './hnp-builder';
 import { babaiNearestPlane } from '../lattice/babai';
 import { lllReduce } from '../lattice/lll';
-import { absBigInt, invert, mod } from '../crypto/modular';
+import { absBigInt, bigIntToBytes, invert, mod } from '../crypto/modular';
 import type { AlgebraDerivation, CurveContext, LeakConfig, RecoveryResult, SignatureRecord } from '../types';
 
 function publicKeysMatch(candidate: bigint, expectedPublicKey: Uint8Array, curve: CurveContext): boolean {
-  const keyBytes = new Uint8Array(candidate.toString(16).padStart(curve.orderBytes * 2, '0').match(/.{1,2}/g)?.map((pair) => Number.parseInt(pair, 16)) ?? []);
-  const derived = curve.getPublicKey(keyBytes, false);
-  if (derived.length !== expectedPublicKey.length) {
+  if (candidate <= 0n || candidate >= curve.order) {
     return false;
   }
-  return derived.every((value, index) => value === expectedPublicKey[index]);
+  try {
+    const keyBytes = bigIntToBytes(candidate, curve.orderBytes);
+    const derived = curve.getPublicKey(keyBytes, false);
+    if (derived.length !== expectedPublicKey.length) {
+      return false;
+    }
+    return derived.every((value, index) => value === expectedPublicKey[index]);
+  } catch {
+    return false;
+  }
 }
 
 interface RepeatedNonceHit {
