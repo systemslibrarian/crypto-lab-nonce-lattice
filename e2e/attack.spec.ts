@@ -310,8 +310,9 @@ test('RFC 6979 defender: the attack fails cleanly and says why', async ({ page }
   await runPreset(page, 'defender');
 
   await expect(page.locator('.scenario-line')).toContainText(
-    'Deterministic nonces remove the leak',
+    'this control supplies no nonce bits to the attacker',
   );
+  await expect(page.locator('.scenario-line')).toContainText('Deterministic signing still needs side-channel defenses');
   await expect(page.locator('.summary-line')).toContainText('no matching key recovered');
 
   // Failure is shown as a failed *final* rung, not a failed pipeline.
