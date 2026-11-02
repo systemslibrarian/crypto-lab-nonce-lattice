@@ -147,7 +147,7 @@ function scenarioDescription(config: AppConfigView): string {
     return 'Sony PS3-style nonce reuse: two signatures are enough to recover d.';
   }
   if (config.leakMode === 'rfc6979') {
-    return 'Deterministic nonces remove the leak, so the lattice should fail cleanly.';
+    return 'RFC 6979 avoids RNG-driven nonce bias; this control supplies no nonce bits to the attacker, so the modeled attack should fail. Deterministic signing still needs side-channel defenses.';
   }
   if (config.leakMode === 'fixed-prefix') {
     return 'Browser-safe demo preset: a 24-bit fixed prefix plus 12 signatures gives a fast, reliable lattice recovery.';

@@ -113,7 +113,7 @@ function renderSweep(config: AppConfigView, curve: CurveContext, sweep: SweepVie
   if (plan.refusal) {
     const reason =
       plan.refusal === 'no-bit-axis'
-        ? 'This leak mode has no leaked-bits axis to sweep. Nonce reuse needs no lattice at all, and RFC 6979 leaks nothing. Switch to MSB, LSB or fixed-prefix.'
+        ? 'This leak mode has no leaked-bits axis to sweep. Nonce reuse needs no lattice at all, and this RFC 6979 control supplies no nonce bits. Switch to MSB, LSB or fixed-prefix.'
         : plan.refusal === 'too-many-signatures'
           ? `A sweep runs the full attack ${TRIALS_PER_LEVEL} times per rung, and at more than ${MAX_SWEEP_SIGNATURES} signatures a single run takes tens of seconds in a browser tab — the lattice dimension is signatures + 2. Lower the signature count to measure this. That limit is this page's budget, not a property of the attack.`
           : `At ${plan.signatureCount} signatures the information floor is ${plan.floor.toFixed(1)} bits per signature, which is past this lab's 32-bit leak control. Every reachable configuration in this column is under-determined, so there is no boundary here to measure — only impossibility. Raise the signature count.`;

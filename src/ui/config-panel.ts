@@ -31,7 +31,7 @@ export function renderConfigPanel(config: AppConfigView): string {
             <option value="lsb" ${config.leakMode === 'lsb' ? 'selected' : ''}>LSB leak — bottom bits known</option>
             <option value="fixed-prefix" ${config.leakMode === 'fixed-prefix' ? 'selected' : ''}>Fixed prefix — shared top bits</option>
             <option value="fixed-constant" ${config.leakMode === 'fixed-constant' ? 'selected' : ''}>Reused nonce — PS3-style</option>
-            <option value="rfc6979" ${config.leakMode === 'rfc6979' ? 'selected' : ''}>RFC 6979 — deterministic (secure)</option>
+            <option value="rfc6979" ${config.leakMode === 'rfc6979' ? 'selected' : ''}>RFC 6979 — no-leakage control</option>
           </select>
         </label>
         <label>

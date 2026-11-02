@@ -15,7 +15,7 @@ export const realityLabels = [
   },
   {
     label: 'Defender Mode',
-    description: 'Demonstrates secure nonce generation (RFC6979). No exploitable leakage.'
+    description: 'Uses RFC 6979 deterministic nonces. This model supplies no nonce leakage; implementation side channels remain a separate concern.'
   },
   {
     label: 'Toy Model',

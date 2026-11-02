@@ -124,7 +124,7 @@ export function renderRecoveryPanel(data: RecoveryPanelData): string {
           <p class="eyebrow">Educational Insight</p>
           <h2>Why this works</h2>
           <p>ECDSA signs with <code>s = k⁻¹(h + rd)</code>, so every signature gives one equation linking the nonce and the secret key. The moment a few bits of k are known, the congruence collapses into a bounded hidden number problem where lattice reduction can isolate the missing scalar.</p>
-          <p>RFC 6979 removes that moving part by deriving k from <code>HMAC(d, m)</code>, so nonce quality no longer depends on ambient randomness. The security question shifts from operating-system entropy to whether the deterministic derivation stays constant-time and implementation-correct.</p>
+          <p>RFC 6979 removes that moving part by deriving k from <code>HMAC(d, m)</code>, so nonce quality no longer depends on ambient randomness. The nonce-generation question shifts from fresh randomness to correct derivation; the whole signing operation still needs side-channel defenses. <a href="https://www.rfc-editor.org/rfc/rfc6979.html#section-4">RFC 6979 §4</a> explicitly warns that determinism can assist some side-channel attacks.</p>
           <p>Timing, cache, power, and EM leakage all terminate in the same place: they leak a few bits of k. The lattice stage shown here is the final step that turns partial nonce information into the signing key.</p>
         </article>
       </div>

@@ -70,7 +70,10 @@ The test compares their recovered scalars with the signing key and public key.
 The fixture is generated locally; it is not a published attack-output vector.
 The HNP context is [Nguyen and Shparlinski's partial-nonce work](https://www.di.ens.fr/~pnguyen/pub_NgSh02.htm).
 The existing [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979.html) mode is a
-negative control with no nonce bits supplied to the attack.
+negative control with no nonce bits supplied to the attack. This is a property of the
+configured experiment, not a guarantee that deterministic signing prevents leakage.
+[RFC 6979 §4](https://www.rfc-editor.org/rfc/rfc6979.html#section-4) warns that
+determinism can assist some side-channel attacks; implementations still need defenses.
 
 ## Related Demos
 
