@@ -1,4 +1,5 @@
 import { recoverKey } from './attacks/recover-key';
+import { normalizeConfig, parseFixedPrefix } from './config';
 import { createNonceGenerator } from './crypto/biased-nonce';
 import { sign, verify } from './crypto/ecdsa';
 import { bigIntToBytes, randomScalar } from './crypto/modular';
@@ -37,20 +38,15 @@ export interface AnalysisResponse {
   error?: string;
 }
 
-function parseHexScalar(value: string): bigint | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-  return BigInt(`0x${trimmed.replace(/^0x/, '')}`);
-}
-
 function buildLeakConfig(config: AppConfigView): LeakConfig {
   return {
     mode: config.leakMode,
     bits: config.leakedBits,
     fixedPrefixVariant: config.fixedPrefixVariant,
-    fixedPrefixValue: parseHexScalar(config.fixedPrefixValue),
+    fixedPrefixValue:
+      config.leakMode === 'fixed-prefix'
+        ? parseFixedPrefix(config.fixedPrefixValue, config.leakedBits)
+        : undefined,
   };
 }
 
@@ -60,11 +56,12 @@ function now(): number {
 
 export function runAnalysis(config: AppConfigView): AnalysisBundle {
   const startedAt = now();
-  const curve = curveMap[config.curve];
+  const normalized = normalizeConfig(config);
+  const curve = curveMap[normalized.curve];
   const privateKey = randomScalar(curve);
-  const leakConfig = buildLeakConfig(config);
+  const leakConfig = buildLeakConfig(normalized);
   const generator = createNonceGenerator(leakConfig, curve, privateKey);
-  const signatures = Array.from({ length: config.signatureCount }, (_value, index) => {
+  const signatures = Array.from({ length: normalized.signatureCount }, (_value, index) => {
     return sign(privateKey, `nonce-lattice sample ${index + 1}`, curve, leakConfig, index, generator);
   });
   const verificationPassed = signatures.every((signature) => verify(signature.publicKey, signature.digest, signature.r, signature.s, curve));

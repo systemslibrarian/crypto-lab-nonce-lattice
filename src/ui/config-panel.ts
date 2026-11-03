@@ -1,4 +1,5 @@
 import type { AppConfigView } from '../types';
+import { escapeHtml } from './escape';
 
 export function renderConfigPanel(config: AppConfigView): string {
   return `
@@ -51,7 +52,7 @@ export function renderConfigPanel(config: AppConfigView): string {
         </label>
         <label>
           <span>Fixed Prefix (hex, optional)</span>
-          <input name="fixedPrefixValue" type="text" value="${config.fixedPrefixValue}" placeholder="e.g. deadbeef" />
+          <input name="fixedPrefixValue" type="text" value="${escapeHtml(config.fixedPrefixValue)}" placeholder="e.g. deadbeef" inputmode="text" autocomplete="off" spellcheck="false" />
         </label>
         <button class="primary-button" type="submit">▶ Generate Attack</button>
       </form>

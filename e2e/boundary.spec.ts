@@ -78,15 +78,15 @@ test('the measured sweep runs real attacks and its verdict follows its own table
     else expect(outcome).toContain('recovered sometimes');
   }
 
-  // Rungs are consecutive and straddle the information floor, so at least one
-  // rung the theory calls impossible was really run.
+  // Rungs are consecutive and straddle the bit-count guide, so at least one
+  // lower-budget control rung was really run.
   for (let i = 1; i < observed.length; i += 1) {
     expect(observed[i].bits).toBe(observed[i - 1].bits + 1);
   }
-  await expect(table.locator('.sweep-flag', { hasText: 'below floor' }).first()).toBeVisible();
+  await expect(table.locator('.sweep-flag', { hasText: 'below guide' }).first()).toBeVisible();
 
   // External truth, not internal consistency: the ladder's bottom rung is two bits
-  // under the information floor (240 bits of leakage against a 256-bit secret) and
+  // under the bit-count guide (240 bits of leakage against a 256-bit order) and
   // its top rung is comfortably over it. A sweep that measures anything real must
   // separate the two. This is the assertion that fails if the worker ever reports
   // a verdict it did not compute from a run.
@@ -129,10 +129,9 @@ test('the measured sweep runs real attacks and its verdict follows its own table
     expect(verdictText).not.toContain('The boundary is a ramp, not a line');
   }
 
-  // The soft-floor note is made when, and only when, a rung under the floor did
-  // recover — the extractor's candidate list can close a deficit of a bit or two.
+  // The below-guide note is made when, and only when, a lower-budget rung recovered.
   const belowFloorHit = observed.some((o) => o.recovered > 0 && o.bits < 256 / 10);
-  expect(verdictText.includes('below the information floor still recovered')).toBe(belowFloorHit);
+  expect(verdictText.includes('below the bit-count guide still recovered')).toBe(belowFloorHit);
 });
 
 test('the sweep refuses, with the reason, where it cannot honestly measure', async ({ page }) => {
@@ -148,13 +147,13 @@ test('the sweep refuses, with the reason, where it cannot honestly measure', asy
   await expect(page.locator('[data-sweep-table]')).toHaveCount(0);
   await expect(page.locator('.feasibility-svg .measured-dot')).toHaveCount(0);
 
-  // 2. The whole column is under-determined: the floor is past the 32-bit control.
+  // 2. The centered ladder does not fit inside the 32-bit control.
   await configure(page, 'msb', 4);
   await page.locator('[data-measure-boundary]').click();
   await expect(page.locator('[data-sweep-refusal]')).toContainText(
-    'information floor is 64.0 bits per signature',
+    'bit-count guide is 64.0 bits per signature',
   );
-  await expect(page.locator('[data-sweep-refusal]')).toContainText('no boundary here to measure');
+  await expect(page.locator('[data-sweep-refusal]')).toContainText('declines to invent a measured boundary');
   await expect(page.locator('[data-sweep-table]')).toHaveCount(0);
 
   // 3. Too expensive to run in a browser tab — declined, and labelled as this
